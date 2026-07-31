@@ -1,34 +1,11 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from openai import OpenAI
-from pydantic import BaseModel, Field
 
 from guide_todoo.config import settings
-
-
-class ParsedTask(BaseModel):
-    title: str
-    description: str = ""
-    priority: int = Field(default=2, ge=1, le=3)
-    due_date: str | None = None
-    subtasks: list["ParsedTask"] = Field(default_factory=list)
-
-
-ParsedTask.model_rebuild()
-
-
-class DailyPlanItem(BaseModel):
-    task_id: int | None = None
-    title: str
-    scheduled_time: str | None = None
-    reason: str = ""
-
-
-class DailyPlanResult(BaseModel):
-    summary: str
-    items: list[DailyPlanItem]
-    focus: str = ""
+from guide_todoo.models import DailyPlanItem, DailyPlanResult, ParsedTask
+from guide_todoo.scheduling import normalize_due_date, workload_summary
 
 
 def _client() -> OpenAI:
@@ -58,38 +35,70 @@ def _chat_json(system: str, user: str) -> Any:
     return json.loads(response.choices[0].message.content or "{}")
 
 
+def _today() -> date:
+    return date.today()
+
+
+def _date_rules() -> str:
+    today = _today()
+    end = today + timedelta(weeks=settings.planning_horizon_weeks)
+    return f"""DATE RULES (critical):
+- TODAY is {today.isoformat()} ({today.strftime('%A')}).
+- All due_date values MUST be between {today.isoformat()} and {end.isoformat()}.
+- NEVER use 2024, 2025, or any date before today.
+- Map "Week 1", "Day 1", "Monday" relative to TODAY.
+- Spread multi-week plans across the full horizon — max {settings.max_tasks_per_day} tasks per day.
+- Use ISO format YYYY-MM-DD only."""
+
+
 def parse_text_to_tasks(text: str, context: str = "") -> list[ParsedTask]:
     payload = _chat_json(
-        """You break work into small actionable tasks for a personal todo system.
-Return JSON: {"tasks": [{"title": str, "description": str, "priority": 1-3, "due_date": "YYYY-MM-DD" or null, "subtasks": [...]}]}
+        f"""You break work into small actionable tasks for a personal todo system.
+Return JSON: {{"tasks": [{{"title": str, "description": str, "priority": 1-3, "due_date": "YYYY-MM-DD" or null, "subtasks": [...]}}]}}
+
+{_date_rules()}
+
 Rules:
-- Each task should be completable in under 2 hours.
-- Break weekly/large items into daily-sized subtasks.
+- Each task completable in under 2 hours.
+- Break large weekly/monthly plans into daily-sized subtasks.
 - priority: 1=urgent, 2=normal, 3=low
-- Infer due dates from context when possible; use ISO dates only.""",
-        f"Context: {context or 'general work'}\n\nContent:\n{text[:12000]}",
+- Respect existing workload — don't pile everything on one day.""",
+        f"Context: {context or 'general work'}\n\nContent:\n{text[:30000]}",
     )
     return [ParsedTask.model_validate(t) for t in payload.get("tasks", [])]
 
 
-def parse_pdf_tasks(text: str) -> list[ParsedTask]:
+def parse_pdf_tasks(text: str, filename: str = "") -> list[ParsedTask]:
+    today = _today()
     return parse_text_to_tasks(
         text,
-        context="Weekly or project PDF. Drill down into small daily tasks with realistic due dates this week.",
+        context=f"""Multi-week study or work plan PDF: "{filename}".
+This PDF may cover several weeks of tasks. Schedule them across multiple weeks starting from {today.isoformat()}.
+Group related items (e.g. DSA topics, coding patterns, weekly modules) with subtasks.
+If the document lists weeks/days/modules, map each to real calendar dates from today forward.""",
     )
 
 
 def build_daily_plan(tasks: list[dict[str, Any]], today: date | None = None) -> DailyPlanResult:
-    today = today or date.today()
+    today = today or _today()
+    workload = workload_summary(tasks, today)
+    workload_lines = "\n".join(f"  {d}: {c} tasks" for d, c in sorted(workload.items())[:14])
     task_lines = "\n".join(
-        f"- id={t['id']} [{t['source']}] p{t['priority']} {t['title']} due={t.get('due_date')}"
+        f"- id={t['id']} [{t.get('source','?')}] p{t['priority']} {t['title']} due={t.get('due_date')}"
         for t in tasks
     )
     payload = _chat_json(
-        """Create a focused daily plan. Return JSON:
-{"summary": str, "focus": str, "items": [{"task_id": int|null, "title": str, "scheduled_time": "HH:MM"|null, "reason": str}]}
-Schedule 4-8 items max. Morning = deep work. Afternoon = meetings/admin. Respect priorities.""",
-        f"Today: {today.isoformat()}\n\nPending tasks:\n{task_lines or '(none)'}",
+        f"""Create a focused, realistic daily plan based on workload.
+Return JSON:
+{{"summary": str, "focus": str, "items": [{{"task_id": int|null, "title": str, "scheduled_time": "HH:MM"|null, "reason": str}}]}}
+
+Rules:
+- Schedule only {settings.max_tasks_per_day} tasks max for today — user cannot do more.
+- Prioritize overdue and due-today tasks first.
+- Morning (08:00-12:00) = deep work / hard topics. Afternoon = lighter tasks.
+- Skip tasks not due today unless overdue or light workload day.
+- Consider existing workload per day when picking tasks.""",
+        f"Today: {today.isoformat()}\n\nWorkload next 2 weeks:\n{workload_lines or '(light)'}\n\nCandidate tasks:\n{task_lines or '(none)'}",
     )
     return DailyPlanResult.model_validate(payload)
 
@@ -118,18 +127,13 @@ Include: completion rate, sources breakdown, wins, bottlenecks, 3 recommendation
 
 
 def parse_due_date(value: str | None) -> date | None:
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(value[:10])
-    except ValueError:
-        return None
+    return normalize_due_date(value, _today())
 
 
 def parse_scheduled_time(value: str | None, base: date | None = None) -> datetime | None:
     if not value:
         return None
-    base = base or date.today()
+    base = base or _today()
     try:
         hour, minute = map(int, value.split(":")[:2])
         return datetime.combine(base, time(hour, minute))

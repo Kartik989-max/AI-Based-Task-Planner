@@ -60,6 +60,8 @@ class Settings(BaseSettings):
     morning_plan_hour: int = 8
     eod_summary_hour: int = 20
     timezone: str = "Asia/Kolkata"
+    max_tasks_per_day: int = 4
+    planning_horizon_weeks: int = 12
 
     @property
     def resolved_api_key(self) -> str:

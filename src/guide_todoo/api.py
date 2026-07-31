@@ -12,7 +12,7 @@ from guide_todoo.ingest.pdf import extract_text_from_pdf
 from guide_todoo.integrations.jira import JiraClient
 from guide_todoo.integrations.reminders import list_incomplete_reminders
 from guide_todoo.integrations.tasks_backend import complete_external
-from guide_todoo.planner import generate_daily_plan, ingest_chat, ingest_pdf_text, sync_jira
+from guide_todoo.planner import generate_daily_plan, ingest_chat, ingest_pdf_text, reschedule_stale_tasks, sync_jira
 from guide_todoo.review import end_of_day_summary, generate_monthly_report
 from guide_todoo.scheduler import start_scheduler, stop_scheduler
 
@@ -118,6 +118,15 @@ def jira_sync():
     if not JiraClient().enabled:
         raise HTTPException(400, "Jira not configured. Set JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN in .env")
     return {"synced": len(created), "tasks": created}
+
+
+@app.post("/plan/reschedule")
+def reschedule_tasks():
+    try:
+        updated = reschedule_stale_tasks()
+    except RuntimeError as exc:
+        raise HTTPException(500, str(exc)) from exc
+    return {"rescheduled": len(updated), "tasks": updated}
 
 
 @app.post("/plan/daily")

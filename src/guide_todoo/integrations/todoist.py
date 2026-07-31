@@ -65,6 +65,24 @@ class TodoistClient:
     def close_task(self, task_id: str) -> None:
         self._request("POST", f"/tasks/{task_id}/close")
 
+    def update_task(
+        self,
+        task_id: str,
+        *,
+        due_date: date | None = None,
+        due_datetime: datetime | None = None,
+        content: str | None = None,
+    ) -> None:
+        payload: dict[str, Any] = {}
+        if content:
+            payload["content"] = content
+        if due_datetime:
+            payload["due_datetime"] = due_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+        elif due_date:
+            payload["due_date"] = due_date.isoformat()
+        if payload:
+            self._request("POST", f"/tasks/{task_id}", json=payload)
+
     def add_comment_task(self, title: str, body: str) -> str:
         content = f"{title}: {body[:200]}" if body else title
         return self.create_task(content, description=body)

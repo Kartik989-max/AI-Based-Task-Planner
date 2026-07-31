@@ -155,6 +155,14 @@ def update_task_status(task_id: int, status: str) -> None:
         )
 
 
+def update_task_due_date(task_id: int, due_date: date | None) -> None:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE tasks SET due_date = %s WHERE id = %s",
+            (due_date, task_id),
+        )
+
+
 def mark_done_by_title(title: str) -> int:
     with connect() as conn:
         cur = conn.execute(

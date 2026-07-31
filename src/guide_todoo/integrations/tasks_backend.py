@@ -40,6 +40,16 @@ def complete_external(external_id: str | None) -> None:
     # Apple Reminders: no close API in our thin wrapper; ponytail: skip
 
 
+def update_external_task(
+    external_id: str,
+    *,
+    due_date: date | None = None,
+    due_datetime: datetime | None = None,
+) -> None:
+    if settings.use_todoist:
+        get_client().update_task(external_id, due_date=due_date, due_datetime=due_datetime)
+
+
 def notify(title: str, body: str = "") -> str | None:
     if settings.use_todoist:
         return get_client().add_comment_task(title, body)
