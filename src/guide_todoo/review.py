@@ -3,8 +3,7 @@ from datetime import date
 
 from guide_todoo import db
 from guide_todoo.config import settings
-from guide_todoo.config import settings
-from guide_todoo.integrations.reminders import create_reminder
+from guide_todoo.integrations.tasks_backend import notify
 from guide_todoo.llm import monthly_analysis, score_day
 
 
@@ -25,12 +24,7 @@ def end_of_day_summary(day: date | None = None) -> dict:
         + f"\n\n## Still pending ({len(planned)})\n"
         + "\n".join(f"- {t['title']}" for t in planned)
     )
-    if settings.push_reminders_locally:
-        create_reminder(
-            f"Day score: {score}/100",
-            list_name=settings.reminders_list,
-            body=summary[:500],
-        )
+    notify(f"Day score: {score}/100", summary)
     return {"date": day.isoformat(), "score": score, "summary": summary, "report": report}
 
 
@@ -47,10 +41,8 @@ def generate_monthly_report(year: int | None = None, month: int | None = None) -
     settings.reports_dir.mkdir(parents=True, exist_ok=True)
     path = settings.reports_dir / f"monthly-{year}-{month:02d}.md"
     path.write_text(report_md, encoding="utf-8")
-    if settings.push_reminders_locally:
-        create_reminder(
-            f"Monthly report ready — {year}-{month:02d}",
-            list_name=settings.reminders_list,
-            body=f"Completion rate: {stats['completion_rate']}%",
-        )
+    notify(
+        f"Monthly report — {year}-{month:02d}",
+        f"Completion rate: {stats['completion_rate']}%",
+    )
     return {"year": year, "month": month, "stats": stats, "report": report_md, "path": str(path)}

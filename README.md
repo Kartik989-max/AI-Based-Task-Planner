@@ -104,7 +104,22 @@ guide-todoo bridge
 | GET | `/review/daily` | EOD summary + score |
 | POST | `/review/monthly` | Monthly analysis report |
 
-## Apple Reminders (Mac + iPhone)
+## Todoist (Mac + iPhone, different Apple IDs OK)
+
+1. Sign up at [todoist.com](https://todoist.com) — same account on Mac + iPhone apps
+2. **Settings → Integrations → Developer** → copy API token
+3. Set in `.env`:
+
+```bash
+TASKS_BACKEND=todoist
+TODOIST_API_TOKEN=your-token
+TODOIST_PROJECT_NAME=Guide Todoo
+REMINDERS_MODE=off
+```
+
+Tasks sync to Todoist automatically. Notifications go to Todoist app on both devices.
+
+## Apple Reminders (optional legacy)
 
 Tasks are created in the **Guide Todoo** list via AppleScript. If that list is synced with iCloud Reminders, they appear on your iPhone automatically.
 

@@ -114,6 +114,12 @@ def insert_task(
         return int(row["id"])
 
 
+def get_task(task_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute("SELECT * FROM tasks WHERE id = %s", (task_id,)).fetchone()
+    return dict(row) if row else None
+
+
 def list_tasks(
     *,
     status: str | None = None,

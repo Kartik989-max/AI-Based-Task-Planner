@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     reminders_list: str = "Guide Todoo"
     bridge_secret: str = ""
     bridge_api_url: str = "http://127.0.0.1:8787"
+    cron_secret: str = ""  # Vercel Cron: set CRON_SECRET in dashboard
+
+    # todoist | reminders | off
+    tasks_backend: str = "todoist"
+    todoist_api_token: str = ""
+    todoist_project_name: str = "Guide Todoo"
 
     jira_base_url: str = ""
     jira_email: str = ""
@@ -78,8 +84,17 @@ class Settings(BaseSettings):
         return preset["base_url"]
 
     @property
+    def resolved_cron_secret(self) -> str:
+        return self.cron_secret or self.bridge_secret
+
+
+    @property
+    def use_todoist(self) -> bool:
+        return self.tasks_backend == "todoist" and bool(self.todoist_api_token)
+
+    @property
     def push_reminders_locally(self) -> bool:
-        return self.reminders_mode == "local"
+        return self.reminders_mode == "local" and self.tasks_backend != "todoist"
 
 
 settings = Settings()

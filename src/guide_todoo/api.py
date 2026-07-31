@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import date
 
@@ -10,6 +11,7 @@ from guide_todoo.config import settings
 from guide_todoo.ingest.pdf import extract_text_from_pdf
 from guide_todoo.integrations.jira import JiraClient
 from guide_todoo.integrations.reminders import list_incomplete_reminders
+from guide_todoo.integrations.tasks_backend import complete_external
 from guide_todoo.planner import generate_daily_plan, ingest_chat, ingest_pdf_text, sync_jira
 from guide_todoo.review import end_of_day_summary, generate_monthly_report
 from guide_todoo.scheduler import start_scheduler, stop_scheduler
@@ -20,7 +22,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    if settings.reminders_mode == "local":
+    # ponytail: APScheduler only on local dev; Vercel uses cron routes
+    if os.getenv("VERCEL") != "1" and (settings.push_reminders_locally or settings.use_todoist):
         start_scheduler()
     yield
     stop_scheduler()
@@ -61,11 +64,12 @@ def health():
     return {
         "ok": db_ok,
         "database": "neon" if db_ok else "unavailable",
+        "tasks_backend": settings.tasks_backend,
+        "todoist_configured": settings.use_todoist,
         "llm_provider": settings.llm_provider,
         "llm_model": settings.resolved_model,
         "llm_configured": bool(settings.resolved_api_key),
         "reminders_mode": settings.reminders_mode,
-        "reminders_list": settings.reminders_list,
         "jira_enabled": JiraClient().enabled,
     }
 
@@ -132,11 +136,18 @@ def list_all_tasks(status: str | None = None):
 @app.post("/tasks/complete")
 def complete_task(body: CompleteRequest):
     if body.task_id:
+        task = db.get_task(body.task_id)
+        if not task:
+            raise HTTPException(404, "Task not found")
         db.update_task_status(body.task_id, "done")
+        complete_external(task.get("reminder_id"))
         return {"completed": body.task_id}
     if body.title:
-        count = db.mark_done_by_title(body.title)
-        return {"completed_by_title": body.title, "rows": count}
+        matches = [t for t in db.list_tasks() if t["title"] == body.title and t["status"] != "done"]
+        for task in matches:
+            db.update_task_status(task["id"], "done")
+            complete_external(task.get("reminder_id"))
+        return {"completed_by_title": body.title, "rows": len(matches)}
     raise HTTPException(400, "Provide task_id or title")
 
 
@@ -164,8 +175,7 @@ def reminders_incomplete():
 
 
 def _verify_cron(authorization: str | None = Header(default=None)) -> None:
-    # Vercel Cron sends Authorization: Bearer <CRON_SECRET>
-    secret = settings.bridge_secret
+    secret = settings.resolved_cron_secret
     if not secret:
         return
     token = (authorization or "").removeprefix("Bearer ").strip()

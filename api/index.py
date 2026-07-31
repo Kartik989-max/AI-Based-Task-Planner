@@ -1,5 +1,7 @@
-"""Vercel serverless entrypoint for Guide Todoo API."""
+import sys
+from pathlib import Path
 
-from guide_todoo.api import app
+# Vercel: src layout is not on PYTHONPATH by default
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-# Vercel expects `app` at module level
+from guide_todoo.api import app  # noqa: E402
