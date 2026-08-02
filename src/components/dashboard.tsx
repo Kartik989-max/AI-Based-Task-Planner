@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Calendar, CheckCircle2, RefreshCw, Sparkles, Sun, Zap } from "lucide-react";
-import { Float, Reveal, Stagger, StaggerItem } from "@/components/motion";
+import { Calendar, CheckCircle2, RefreshCw, Sparkles, Sun } from "lucide-react";
+import { FadeIn } from "@/components/motion";
 import { Btn, Glass, PageLoader, Pill, ProgressBar, Skeleton } from "@/components/ui";
 import { api, type Health, type Progress as GoalProgress } from "@/lib/api";
 
@@ -67,9 +67,9 @@ export function Dashboard() {
   }
 
   return (
-    <Stagger className="bento-asymmetric">
-      <StaggerItem className="bento-span-7 bento-row-2">
-        <Glass glow tilt className="h-full p-6 md:p-8">
+    <FadeIn className="bento-asymmetric">
+      <div className="bento-span-7 bento-row-2">
+        <Glass glow className="h-full p-6 md:p-8">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="icon-badge">
@@ -103,7 +103,7 @@ export function Dashboard() {
           </div>
 
           {busy ? <PageLoader /> : null}
-          {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
+          {error ? <p className="mt-4 text-sm text-red-500">{error}</p> : null}
 
           <div className="panel-inner mt-5 p-5">
             {brief ? (
@@ -123,71 +123,65 @@ export function Dashboard() {
             </div>
           ) : null}
         </Glass>
-      </StaggerItem>
+      </div>
 
-      <StaggerItem className="bento-span-5">
-        <Float>
-          <Glass tilt className="flex h-full flex-col justify-between p-6">
-            <div className="icon-badge">
-              <Zap className="h-5 w-5" />
-            </div>
-            <div className="mt-4">
-              <p className="stat-num">{progress?.progress_pct ?? 0}%</p>
-              <p className="stat-label mt-1">Goal progress</p>
-            </div>
-            <div className="mt-4">
-              <ProgressBar value={progress?.progress_pct || 0} />
-            </div>
-            <p className="mt-3 truncate text-xs text-muted">{progress?.main_goal || "Set a goal in Setup"}</p>
-          </Glass>
-        </Float>
-      </StaggerItem>
+      <div className="bento-span-5">
+        <Glass className="flex h-full flex-col justify-between p-6">
+          <div className="icon-badge">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+          <div className="mt-4">
+            <p className="stat-num">{progress?.progress_pct ?? 0}%</p>
+            <p className="stat-label mt-1">Goal progress</p>
+          </div>
+          <div className="mt-4">
+            <ProgressBar value={progress?.progress_pct || 0} />
+          </div>
+          <p className="mt-3 truncate text-xs text-muted">{progress?.main_goal || "Set a goal in Setup"}</p>
+        </Glass>
+      </div>
 
-      <StaggerItem className="bento-span-5">
-        <Reveal>
-          <Glass tilt className="flex h-full flex-col justify-between p-6">
-            <div className="icon-badge">
-              <CheckCircle2 className="h-5 w-5" />
+      <div className="bento-span-5">
+        <Glass className="flex h-full flex-col justify-between p-6">
+          <div className="icon-badge">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-2xl font-semibold text-heading">{progress?.completed ?? 0}</p>
+              <p className="stat-label">Done</p>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-2xl font-bold text-heading">{progress?.completed ?? 0}</p>
-                <p className="stat-label">Done</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-heading">{progress?.pending ?? 0}</p>
-                <p className="stat-label">Pending</p>
-              </div>
+            <div>
+              <p className="text-2xl font-semibold text-heading">{progress?.pending ?? 0}</p>
+              <p className="stat-label">Pending</p>
             </div>
-            <p className="mt-3 text-xs text-muted">
-              LeetCode {progress?.leetcode.total ?? 0} · {health?.onboarded ? "Onboarded" : "Needs setup"}
-            </p>
-          </Glass>
-        </Reveal>
-      </StaggerItem>
+          </div>
+          <p className="mt-3 text-xs text-muted">
+            LeetCode {progress?.leetcode.total ?? 0} · {health?.onboarded ? "Onboarded" : "Needs setup"}
+          </p>
+        </Glass>
+      </div>
 
-      <StaggerItem className="bento-span-full">
-        <Reveal delay={0.1}>
-          <Glass className="p-6 md:p-8">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="display-lg text-heading">Pending tasks</h2>
-              <Pill>{tasks.length} active</Pill>
-            </div>
-            {tasks.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-2">No pending tasks — ingest a PDF or chat to get started</p>
-            ) : (
-              <ul className="space-y-2">
-                {tasks.map((task, i) => (
-                  <li key={String(task.id)} className="task-row text-sm" style={{ animationDelay: `${i * 50}ms` }}>
-                    <span className="font-semibold text-heading">{String(task.title)}</span>
-                    {task.due_date ? <span className="ml-2 text-muted-2">· {String(task.due_date)}</span> : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Glass>
-        </Reveal>
-      </StaggerItem>
-    </Stagger>
+      <div className="bento-span-full">
+        <Glass className="p-6 md:p-8">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="display-lg text-heading">Pending tasks</h2>
+            <Pill>{tasks.length} active</Pill>
+          </div>
+          {tasks.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-2">No pending tasks — ingest a PDF or chat to get started</p>
+          ) : (
+            <ul className="space-y-2">
+              {tasks.map((task) => (
+                <li key={String(task.id)} className="task-row text-sm">
+                  <span className="font-medium text-heading">{String(task.title)}</span>
+                  {task.due_date ? <span className="ml-2 text-muted-2">· {String(task.due_date)}</span> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Glass>
+      </div>
+    </FadeIn>
   );
 }

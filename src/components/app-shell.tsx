@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Moon, Settings, Sparkles, Sun, Target, Zap } from "lucide-react";
+import { LayoutDashboard, Moon, Settings, Sparkles, Sun, Target } from "lucide-react";
 import { AmbientBackground } from "@/components/ambient";
-import { CustomCursor } from "@/components/cursor";
-import { FadeIn, Marquee } from "@/components/motion";
+import { FadeIn } from "@/components/motion";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
 import { BtnGhost } from "@/components/ui";
 
@@ -16,54 +15,55 @@ const links = [
   { href: "/settings", label: "Config", icon: Settings },
 ];
 
+const pageTitles: Record<string, { title: string; subtitle: string }> = {
+  "/": { title: "Dashboard", subtitle: "Your daily overview and quick actions" },
+  "/onboarding": { title: "Setup", subtitle: "Personalize how your planner works" },
+  "/progress": { title: "Goals", subtitle: "Track your mission and milestones" },
+  "/settings": { title: "Config", subtitle: "Integrations and preferences" },
+};
+
 function ShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
+  const page = pageTitles[pathname] ?? pageTitles["/"];
 
   return (
     <>
-      <CustomCursor />
       <AmbientBackground />
       <div className="shell">
-        <FadeIn>
-          <header className="mb-5 flex flex-col gap-4 md:mb-10 md:gap-6 md:flex-row md:items-end md:justify-between">
-            <div className="space-y-3">
-              <p className="eyebrow flex items-center gap-2">
-                <Zap className="h-3.5 w-3.5" />
-                AI task intelligence
-              </p>
-              <h1 className="display-xl text-gradient-animated">Guide Todoo</h1>
-              <p className="max-w-md text-body text-muted">
-                Plan smarter. Ship faster. Your autonomous productivity cockpit.
-              </p>
+        <header className="site-header">
+          <div className="header-inner">
+            <span className="brand">Guide Todoo</span>
+
+            <nav className="top-nav" aria-label="Main navigation">
+              {links.map(({ href, label, icon: Icon }) => {
+                const active = pathname === href;
+                return (
+                  <Link key={href} href={href} className={`top-nav-link ${active ? "active" : ""}`}>
+                    <Icon />
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="header-actions">
+              <BtnGhost onClick={toggle} aria-label="Toggle theme">
+                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </BtnGhost>
             </div>
-            <BtnGhost onClick={toggle} aria-label="Toggle theme" className="self-start md:self-auto">
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              {theme === "dark" ? "Light mode" : "Dark mode"}
-            </BtnGhost>
-          </header>
+          </div>
+        </header>
 
-          <Marquee className="mb-5 md:mb-8">
-            Plan · Sync · Ship · Review · Repeat · AI-powered focus · Deep work blocks · Goal tracking ·
-          </Marquee>
-
-          <div className="section-divider mb-8" />
+        <FadeIn>
+          <div className="page-intro">
+            <h1 className="display-xl text-heading">{page.title}</h1>
+            <p className="mt-1 text-body text-muted">{page.subtitle}</p>
+          </div>
         </FadeIn>
 
         <main>{children}</main>
       </div>
-
-      <nav className="dock" aria-label="Main navigation">
-        {links.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href;
-          return (
-            <Link key={href} href={href} className={`dock-link ${active ? "active" : ""}`} data-cursor-hover="">
-              <Icon />
-              <span>{label}</span>
-            </Link>
-          );
-        })}
-      </nav>
     </>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
-import { Reveal } from "@/components/motion";
+import { FadeIn } from "@/components/motion";
 import { Btn, Field, Glass, Input, Select } from "@/components/ui";
 import { api } from "@/lib/api";
 
@@ -62,8 +62,8 @@ export function OnboardingForm() {
   }
 
   return (
-    <Reveal>
-      <Glass glow tilt className="overflow-hidden p-6 md:p-10">
+    <FadeIn>
+      <Glass glow className="overflow-hidden p-6 md:p-10">
         <div className="mb-8 flex items-center gap-4">
           <div className="icon-badge">
             <Sparkles className="h-5 w-5" />
@@ -134,11 +134,11 @@ export function OnboardingForm() {
             <Btn type="submit" loading={saving}>
               Save & activate
             </Btn>
-            {status ? <p className="mt-4 text-sm text-emerald-400">{status}</p> : null}
-            {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
+            {status ? <p className="mt-4 text-sm text-emerald-600">{status}</p> : null}
+            {error ? <p className="mt-4 text-sm text-red-500">{error}</p> : null}
           </div>
         </form>
       </Glass>
-    </Reveal>
+    </FadeIn>
   );
 }
