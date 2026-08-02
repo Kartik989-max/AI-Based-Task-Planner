@@ -68,6 +68,8 @@ def build_llm_context(user_id: str = "default") -> str:
         f"- Max tasks/day: {profile.get('max_tasks_per_day', 4)}",
         f"- Timezone: {profile.get('timezone', 'Asia/Kolkata')}",
     ]
+    if profile.get("focus_day"):
+        lines.append(f"- Focus day (max 1 side task): {profile.get('focus_day')}")
     memories = get_memories(user_id)
     if memories:
         lines.append("\nUSER MEMORY (learned over time):")

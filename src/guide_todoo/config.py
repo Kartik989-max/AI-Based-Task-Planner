@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     max_tasks_per_day: int = 4
     planning_horizon_weeks: int = 12
 
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://127.0.0.1:8787/auth/google/callback"
+    app_base_url: str = "http://127.0.0.1:8787"
+    todoist_webhook_secret: str = ""
+    session_secret: str = "change-me"
+
     @property
     def resolved_api_key(self) -> str:
         return self.llm_api_key or self.openai_api_key

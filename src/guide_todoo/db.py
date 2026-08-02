@@ -62,6 +62,38 @@ CREATE TABLE IF NOT EXISTS user_memories (
 );
 
 CREATE INDEX IF NOT EXISTS idx_memories_user ON user_memories (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS oauth_tokens (
+    user_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT,
+    expires_at TIMESTAMPTZ,
+    scopes TEXT,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, provider)
+);
+
+CREATE TABLE IF NOT EXISTS leetcode_solves (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL DEFAULT 'default',
+    problem_slug TEXT NOT NULL,
+    title TEXT NOT NULL,
+    difficulty TEXT,
+    solved_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS weekly_reports (
+    id SERIAL PRIMARY KEY,
+    year INTEGER NOT NULL,
+    week INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    progress_pct DOUBLE PRECISION,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (year, week)
+);
+
+CREATE INDEX IF NOT EXISTS idx_leetcode_user ON leetcode_solves (user_id, solved_at DESC);
 """
 
 _initialized = False
@@ -361,3 +393,98 @@ def list_memories(user_id: str, limit: int = 12) -> list[dict[str, Any]]:
             (user_id, limit),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def save_oauth_token(
+    user_id: str,
+    provider: str,
+    access_token: str,
+    refresh_token: str | None = None,
+    expires_at: datetime | None = None,
+    scopes: str | None = None,
+) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO oauth_tokens (user_id, provider, access_token, refresh_token, expires_at, scopes, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (user_id, provider) DO UPDATE SET
+                access_token = EXCLUDED.access_token,
+                refresh_token = COALESCE(EXCLUDED.refresh_token, oauth_tokens.refresh_token),
+                expires_at = EXCLUDED.expires_at,
+                scopes = EXCLUDED.scopes,
+                updated_at = EXCLUDED.updated_at
+            """,
+            (user_id, provider, access_token, refresh_token, expires_at, scopes, _now()),
+        )
+
+
+def get_oauth_token(user_id: str, provider: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM oauth_tokens WHERE user_id = %s AND provider = %s",
+            (user_id, provider),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def log_leetcode_solve(
+    user_id: str,
+    problem_slug: str,
+    title: str,
+    difficulty: str | None = None,
+) -> int:
+    with connect() as conn:
+        row = conn.execute(
+            """
+            INSERT INTO leetcode_solves (user_id, problem_slug, title, difficulty, solved_at)
+            VALUES (%s, %s, %s, %s, %s) RETURNING id
+            """,
+            (user_id, problem_slug, title, difficulty, _now()),
+        ).fetchone()
+        assert row is not None
+        return int(row["id"])
+
+
+def leetcode_stats(user_id: str = "default") -> dict[str, Any]:
+    with connect() as conn:
+        total = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM leetcode_solves WHERE user_id = %s", (user_id,)
+        ).fetchone()["cnt"]
+        by_diff = conn.execute(
+            """
+            SELECT difficulty, COUNT(*) AS cnt FROM leetcode_solves
+            WHERE user_id = %s GROUP BY difficulty
+            """,
+            (user_id,),
+        ).fetchall()
+    return {"total": int(total), "by_difficulty": {r["difficulty"] or "unknown": int(r["cnt"]) for r in by_diff}}
+
+
+def save_weekly_report(year: int, week: int, content: str, progress_pct: float | None = None) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO weekly_reports (year, week, content, progress_pct, created_at)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (year, week) DO UPDATE SET content = EXCLUDED.content,
+                progress_pct = EXCLUDED.progress_pct, created_at = EXCLUDED.created_at
+            """,
+            (year, week, content, progress_pct, _now()),
+        )
+
+
+def goal_progress(user_id: str = "default") -> dict[str, Any]:
+    pending = list_tasks(status="pending")
+    done = list_tasks(status="done")
+    total = len(pending) + len(done)
+    pct = round(len(done) / total * 100, 1) if total else 0.0
+    profile = get_user_profile(user_id) or {}
+    return {
+        "main_goal": profile.get("main_goal", ""),
+        "total_tasks": total,
+        "completed": len(done),
+        "pending": len(pending),
+        "progress_pct": pct,
+        "leetcode": leetcode_stats(user_id),
+    }

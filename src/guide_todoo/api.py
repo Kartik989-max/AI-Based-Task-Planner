@@ -3,15 +3,19 @@ import os
 from contextlib import asynccontextmanager
 from datetime import date
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
-from pydantic import BaseModel
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, Field
 
 from guide_todoo import db
 from guide_todoo.config import settings
 from guide_todoo.ingest.pdf import extract_text_from_pdf
+from guide_todoo.integrations import google_calendar
 from guide_todoo.integrations.jira import JiraClient
 from guide_todoo.integrations.reminders import list_incomplete_reminders
 from guide_todoo.integrations.tasks_backend import complete_external
+from guide_todoo.intelligence import generate_morning_brief, generate_weekly_review, log_leetcode
 from guide_todoo.models import OnboardingRequest
 from guide_todoo.planner import generate_daily_plan, ingest_chat, ingest_pdf_text, reschedule_stale_tasks, sync_jira
 from guide_todoo.review import end_of_day_summary, generate_monthly_report
@@ -32,7 +36,15 @@ async def lifespan(_app: FastAPI):
     stop_scheduler()
 
 
-app = FastAPI(title="Guide Todoo", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="Guide Todoo", version="0.3.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def verify_bridge(authorization: str | None = Header(default=None)) -> None:
@@ -55,6 +67,19 @@ class CompleteRequest(BaseModel):
 class BridgeAck(BaseModel):
     task_id: int
     reminder_id: str
+
+
+class LeetCodeRequest(BaseModel):
+    problem_slug: str
+    title: str
+    difficulty: str | None = None
+
+
+class ProfilePatch(BaseModel):
+    focus_day: str | None = None
+    max_tasks_per_day: int | None = Field(default=None, ge=1, le=10)
+    main_goal: str | None = None
+    notification_style: str | None = None
 
 
 def _require_onboarded() -> None:
@@ -102,6 +127,8 @@ def health():
         "reminders_mode": settings.reminders_mode,
         "jira_enabled": JiraClient().enabled,
         "onboarded": is_onboarded(),
+        "google_calendar": google_calendar.is_connected(),
+        "google_oauth_configured": bool(settings.google_client_id and settings.google_client_secret),
     }
 
 
@@ -222,6 +249,96 @@ def monthly_review(year: int | None = None, month: int | None = None):
         raise HTTPException(500, str(exc)) from exc
 
 
+@app.get("/review/weekly")
+def weekly_review():
+    try:
+        return generate_weekly_review()
+    except RuntimeError as exc:
+        raise HTTPException(500, str(exc)) from exc
+
+
+@app.get("/progress")
+def progress():
+    return db.goal_progress()
+
+
+@app.get("/calendar/status")
+def calendar_status():
+    return {"connected": google_calendar.is_connected()}
+
+
+@app.get("/calendar/slots")
+def calendar_slots(day: date | None = None):
+    day = day or date.today()
+    slots = google_calendar.free_slots(day)
+    return {
+        "date": day.isoformat(),
+        "connected": google_calendar.is_connected(),
+        "slots": [{"start": s[0].strftime("%H:%M"), "end": s[1].strftime("%H:%M")} for s in slots],
+    }
+
+
+@app.get("/auth/google")
+def google_auth_start():
+    try:
+        return {"url": google_calendar.auth_url()}
+    except RuntimeError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/auth/google/callback")
+def google_auth_callback(code: str, state: str = "default"):
+    try:
+        result = google_calendar.handle_callback(code, user_id=state)
+    except Exception as exc:
+        raise HTTPException(400, f"Google OAuth failed: {exc}") from exc
+    return RedirectResponse(f"{settings.app_base_url}/settings?google=connected&email={result.get('email', '')}")
+
+
+@app.patch("/profile")
+def patch_profile(body: ProfilePatch):
+    profile = get_profile()
+    if not profile:
+        raise HTTPException(404, "Not onboarded")
+    for key, value in body.model_dump(exclude_none=True).items():
+        profile[key] = value
+    db.upsert_user_profile("default", profile)
+    return {"ok": True, "profile": profile}
+
+
+@app.post("/leetcode/log")
+def leetcode_log(body: LeetCodeRequest):
+    return log_leetcode(body.problem_slug, body.title, body.difficulty)
+
+
+@app.get("/leetcode/stats")
+def leetcode_stats():
+    return db.leetcode_stats()
+
+
+@app.post("/webhooks/todoist")
+async def todoist_webhook(request: Request):
+    payload = await request.json()
+    event = payload.get("event_name", "")
+    if event == "item:completed":
+        todoist_id = str(payload.get("event_data", {}).get("id", ""))
+        for task in db.list_tasks(status="pending"):
+            if str(task.get("reminder_id")) == todoist_id:
+                db.update_task_status(task["id"], "done")
+                return {"ok": True, "completed": task["id"]}
+    elif event in ("item:updated", "item:added"):
+        sync_from_todoist()
+    return {"ok": True, "event": event}
+
+
+@app.get("/brief/morning")
+def morning_brief(day: date | None = None):
+    try:
+        return generate_morning_brief(day)
+    except RuntimeError as exc:
+        raise HTTPException(500, str(exc)) from exc
+
+
 @app.get("/reminders/incomplete")
 def reminders_incomplete():
     if not settings.push_reminders_locally:
@@ -240,9 +357,12 @@ def _verify_cron(authorization: str | None = Header(default=None)) -> None:
 
 @app.get("/api/cron/morning")
 def cron_morning(_: None = Depends(_verify_cron)):
-    run_full_sync()
-    sync_jira()
-    return generate_daily_plan()
+    try:
+        return generate_morning_brief()
+    except RuntimeError:
+        run_full_sync()
+        sync_jira()
+        return generate_daily_plan()
 
 
 @app.get("/api/cron/eod")
@@ -253,3 +373,8 @@ def cron_eod(_: None = Depends(_verify_cron)):
 @app.get("/api/cron/monthly")
 def cron_monthly(_: None = Depends(_verify_cron)):
     return generate_monthly_report()
+
+
+@app.get("/api/cron/weekly")
+def cron_weekly(_: None = Depends(_verify_cron)):
+    return generate_weekly_review()

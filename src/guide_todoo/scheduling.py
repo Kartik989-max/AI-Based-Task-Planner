@@ -38,7 +38,13 @@ def schedule_task_tree(
 ) -> list[ParsedTask]:
     """Spread tasks across days/weeks when dates are missing or invalid."""
     today = today or date.today()
-    max_per_day = max_per_day or settings.max_tasks_per_day
+    if max_per_day is None:
+        try:
+            from guide_todoo.intelligence import adaptive_max_tasks
+
+            max_per_day = adaptive_max_tasks()
+        except Exception:
+            max_per_day = settings.max_tasks_per_day
     state = {"day_offset": 0, "count_today": 0}
 
     def assign(items: list[ParsedTask]) -> None:

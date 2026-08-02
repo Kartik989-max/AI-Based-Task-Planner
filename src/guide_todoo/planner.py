@@ -1,8 +1,10 @@
 from datetime import date
 
 from guide_todoo import db
+from guide_todoo.integrations.google_calendar import free_slots, is_connected
 from guide_todoo.integrations.jira import JiraClient
 from guide_todoo.integrations.tasks_backend import push_task, update_external_task
+from guide_todoo.intelligence import adaptive_max_tasks
 from guide_todoo.models import ParsedTask
 from guide_todoo.llm import (
     build_daily_plan,
@@ -106,18 +108,30 @@ def sync_jira() -> list[dict]:
 def generate_daily_plan(plan_date: date | None = None) -> dict:
     plan_date = plan_date or date.today()
     pending = db.list_tasks(status="pending")
-    eligible = tasks_eligible_for_day(pending, plan_date)
+    max_daily = adaptive_max_tasks()
+    eligible = tasks_eligible_for_day(pending, plan_date, max_daily=max_daily)
     plan = build_daily_plan(eligible, plan_date)
+    slots = free_slots(plan_date) if is_connected() else []
     lines = [f"## Daily plan — {plan_date.isoformat()}", "", plan.summary, "", f"**Focus:** {plan.focus}", ""]
     by_id = {t["id"]: t for t in pending}
-    for item in plan.items:
+    for idx, item in enumerate(plan.items):
+        if slots and idx < len(slots):
+            item.scheduled_time = slots[idx][0].strftime("%H:%M")
         due_dt = parse_scheduled_time(item.scheduled_time, plan_date)
         title = by_id[item.task_id]["title"] if item.task_id and item.task_id in by_id else item.title
         push_task(title, description=item.reason, due_date=plan_date, due_datetime=due_dt, priority=2)
         lines.append(f"- {item.scheduled_time or 'anytime'} — {title} ({item.reason})")
     content = "\n".join(lines)
     db.save_daily_plan(plan_date, content)
-    return {"date": plan_date.isoformat(), "plan": content, "items": [i.model_dump() for i in plan.items]}
+    slot_text = [f"{s[0].strftime('%H:%M')}-{s[1].strftime('%H:%M')}" for s in slots[:4]]
+    return {
+        "date": plan_date.isoformat(),
+        "plan": content,
+        "items": [i.model_dump() for i in plan.items],
+        "free_slots": slot_text,
+        "max_tasks": max_daily,
+        "calendar_connected": is_connected(),
+    }
 
 
 def reschedule_stale_tasks() -> list[dict]:

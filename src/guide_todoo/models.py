@@ -44,5 +44,7 @@ class OnboardingRequest(BaseModel):
     notification_style: str = Field(default="normal", description="gentle | normal | focused")
     quiet_hours_start: str = Field(default="22:00")
     quiet_hours_end: str = Field(default="07:00")
+    focus_day: str | None = Field(default=None, description="YYYY-MM-DD heavy work day — max 1 side task")
+    morning_plan_hour: int = Field(default=8, ge=0, le=23)
     max_tasks_per_day: int = Field(default=4, ge=1, le=10)
     timezone: str = Field(default="Asia/Kolkata")
