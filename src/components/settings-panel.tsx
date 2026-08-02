@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Calendar, Code2 } from "lucide-react";
 import { Stagger, StaggerItem } from "@/components/motion";
-import { Btn, Field, Glass, Input } from "@/components/ui";
+import { Btn, Field, Glass, Input, Skeleton } from "@/components/ui";
 import { api } from "@/lib/api";
 
 export function SettingsPanel() {
@@ -11,26 +11,49 @@ export function SettingsPanel() {
   const [slots, setSlots] = useState<{ start: string; end: string }[]>([]);
   const [leetcode, setLeetcode] = useState({ problem_slug: "", title: "", difficulty: "Medium" });
   const [message, setMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
+  const [logging, setLogging] = useState(false);
 
   useEffect(() => {
-    api.calendarStatus()
-      .then((r) => setConnected(r.connected))
-      .catch(() => undefined);
-    api.calendarSlots()
-      .then((r) => setSlots(r.slots))
-      .catch(() => undefined);
+    Promise.all([api.calendarStatus(), api.calendarSlots()])
+      .then(([status, cal]) => {
+        setConnected(status.connected);
+        setSlots(cal.slots);
+      })
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
   }, []);
 
   async function connectGoogle() {
-    const { url } = await api.googleAuthUrl();
-    window.location.href = url;
+    setConnecting(true);
+    try {
+      const { url } = await api.googleAuthUrl();
+      window.location.href = url;
+    } catch {
+      setConnecting(false);
+    }
   }
 
   async function logSolve(e: React.FormEvent) {
     e.preventDefault();
-    const res = await api.logLeetcode(leetcode);
-    setMessage(`Logged. Total solves: ${res.stats.total}`);
-    setLeetcode({ ...leetcode, problem_slug: "", title: "" });
+    setLogging(true);
+    try {
+      const res = await api.logLeetcode(leetcode);
+      setMessage(`Logged. Total solves: ${res.stats.total}`);
+      setLeetcode({ ...leetcode, problem_slug: "", title: "" });
+    } finally {
+      setLogging(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Skeleton className="h-64" />
+        <Skeleton className="h-64" />
+      </div>
+    );
   }
 
   return (
@@ -38,12 +61,22 @@ export function SettingsPanel() {
       <StaggerItem>
         <Glass glow className="p-6 md:p-8">
           <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-sky-300" />
-            <h2 className="text-lg font-semibold text-white">Google Calendar</h2>
+            <Calendar className="h-5 w-5 text-accent" />
+            <h2 className="text-lg font-semibold text-heading">Google Calendar</h2>
           </div>
-          <p className="mt-1 text-sm text-white/55">OAuth for free-window scheduling</p>
-          <p className="mt-4 text-sm text-white/70">Status: {connected ? "Connected" : "Not connected"}</p>
-          <Btn className="mt-4" onClick={connectGoogle}>
+          <p className="mt-1 text-sm text-muted">OAuth for free-window scheduling</p>
+
+          <div className="info-box mt-4">
+            <strong>For all customers (not just you):</strong> In Google Cloud Console → OAuth consent screen → click{" "}
+            <strong>Publish App</strong>. Calendar access needs Google verification (1–4 weeks). Until then, only test
+            users can connect.{" "}
+            <a href="https://support.google.com/cloud/answer/10311615" target="_blank" rel="noreferrer">
+              Google verification guide
+            </a>
+          </div>
+
+          <p className="mt-4 text-sm text-muted">Status: {connected ? "Connected" : "Not connected"}</p>
+          <Btn className="mt-4" loading={connecting} onClick={connectGoogle}>
             Connect Google
           </Btn>
           {slots.length > 0 ? (
@@ -61,10 +94,10 @@ export function SettingsPanel() {
       <StaggerItem>
         <Glass className="p-6 md:p-8">
           <div className="flex items-center gap-2">
-            <Code2 className="h-5 w-5 text-violet-300" />
-            <h2 className="text-lg font-semibold text-white">LeetCode log</h2>
+            <Code2 className="h-5 w-5 text-accent" />
+            <h2 className="text-lg font-semibold text-heading">LeetCode log</h2>
           </div>
-          <p className="mt-1 text-sm text-white/55">Track solves toward interview goals</p>
+          <p className="mt-1 text-sm text-muted">Track solves toward interview goals</p>
           <form className="mt-5 space-y-4" onSubmit={logSolve}>
             <Field label="Slug">
               <Input
@@ -88,8 +121,10 @@ export function SettingsPanel() {
                 onChange={(e) => setLeetcode({ ...leetcode, difficulty: e.target.value })}
               />
             </Field>
-            <Btn type="submit">Log solve</Btn>
-            {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
+            <Btn type="submit" loading={logging}>
+              Log solve
+            </Btn>
+            {message ? <p className="text-sm text-emerald-500">{message}</p> : null}
           </form>
         </Glass>
       </StaggerItem>

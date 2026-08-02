@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Settings, Sparkles, Target } from "lucide-react";
+import { LayoutDashboard, Moon, Settings, Sparkles, Sun, Target } from "lucide-react";
 import { FadeIn } from "@/components/motion";
+import { ThemeProvider, useTheme } from "@/components/theme-provider";
 import { BtnGhost } from "@/components/ui";
 
 const links = [
@@ -13,8 +14,9 @@ const links = [
   { href: "/progress", label: "Progress", icon: Target },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+function ShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { theme, toggle } = useTheme();
 
   return (
     <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-4 py-8 md:px-8">
@@ -22,30 +24,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="pointer-events-none absolute -right-10 top-32 h-48 w-48 rounded-full bg-cyan-400/15 blur-3xl" />
 
       <FadeIn>
-        <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-indigo-200/60">Guide Todoo</p>
-            <h1 className="mt-1 bg-gradient-to-r from-white via-indigo-100 to-cyan-200 bg-clip-text text-3xl font-bold text-transparent md:text-4xl">
-              Liquid glass planner
-            </h1>
+        <header className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <h1 className="text-2xl font-bold text-heading md:text-3xl">Guide Todoo</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <BtnGhost onClick={toggle} aria-label="Toggle theme">
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === "dark" ? "Light" : "Dark"}
+            </BtnGhost>
+            <nav className="flex flex-wrap gap-2">
+              {links.map(({ href, label, icon: Icon }) => {
+                const active = pathname === href;
+                return (
+                  <Link key={href} href={href}>
+                    <BtnGhost className={active ? "active" : ""}>
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </BtnGhost>
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
-          <nav className="flex flex-wrap gap-2">
-            {links.map(({ href, label, icon: Icon }) => {
-              const active = pathname === href;
-              return (
-                <Link key={href} href={href}>
-                  <BtnGhost className={active ? "active" : ""}>
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </BtnGhost>
-                </Link>
-              );
-            })}
-          </nav>
         </header>
       </FadeIn>
 
       <main className="relative flex-1">{children}</main>
     </div>
+  );
+}
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider>
+      <ShellInner>{children}</ShellInner>
+    </ThemeProvider>
   );
 }

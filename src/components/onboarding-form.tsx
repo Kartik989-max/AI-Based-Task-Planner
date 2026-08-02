@@ -28,6 +28,7 @@ export function OnboardingForm() {
   const [form, setForm] = useState(defaultForm);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.onboardStatus()
@@ -40,7 +41,8 @@ export function OnboardingForm() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setStatus("Saving…");
+    setSaving(true);
+    setStatus(null);
     setError(null);
     try {
       await api.onboard({
@@ -53,15 +55,16 @@ export function OnboardingForm() {
       setStatus("Profile saved. LLM planning will use your preferences.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
-      setStatus(null);
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <FadeIn>
       <Glass glow className="p-6 md:p-8">
-        <h2 className="text-xl font-semibold text-white">Onboarding</h2>
-        <p className="mt-1 text-sm text-white/55">Work hours, goals, quiet hours, and focus days</p>
+        <h2 className="text-xl font-semibold text-heading">Onboarding</h2>
+        <p className="mt-1 text-sm text-muted">Work hours, goals, quiet hours, and focus days</p>
 
         <form className="mt-6 grid gap-5 md:grid-cols-2" onSubmit={submit}>
           <Field label="Role">
@@ -120,9 +123,11 @@ export function OnboardingForm() {
             <Input value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
           </Field>
           <div className="md:col-span-2">
-            <Btn type="submit">Save profile</Btn>
-            {status ? <p className="mt-3 text-sm text-emerald-300">{status}</p> : null}
-            {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
+            <Btn type="submit" loading={saving}>
+              Save profile
+            </Btn>
+            {status ? <p className="mt-3 text-sm text-emerald-500">{status}</p> : null}
+            {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
           </div>
         </form>
       </Glass>

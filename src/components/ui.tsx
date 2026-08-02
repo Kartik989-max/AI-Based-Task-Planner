@@ -1,3 +1,4 @@
+import { Loader2 } from "lucide-react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 
 export function Glass({
@@ -12,9 +13,12 @@ export function Glass({
   return <div className={`glass ${glow ? "glass-glow" : ""} ${className}`.trim()}>{children}</div>;
 }
 
-export function Btn({ className = "", children, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
+type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean };
+
+export function Btn({ className = "", children, loading, disabled, ...props }: BtnProps) {
   return (
-    <button className={`glass-btn ${className}`.trim()} {...props}>
+    <button className={`glass-btn ${className}`.trim()} disabled={disabled || loading} {...props}>
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
       {children}
     </button>
   );
@@ -31,7 +35,7 @@ export function BtnGhost({ className = "", children, ...props }: ButtonHTMLAttri
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-2">
-      <span className="text-xs font-medium uppercase tracking-wider text-white/55">{label}</span>
+      <span className="field-label">{label}</span>
       {children}
     </label>
   );
@@ -60,4 +64,17 @@ export function ProgressBar({ value }: { value: number }) {
 export function Pill({ children, tone = "default" }: { children: ReactNode; tone?: "default" | "ok" | "warn" }) {
   const toneClass = tone === "ok" ? "pill-ok" : tone === "warn" ? "pill-warn" : "";
   return <span className={`pill ${toneClass}`}>{children}</span>;
+}
+
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`skeleton ${className}`.trim()} />;
+}
+
+export function PageLoader() {
+  return (
+    <div className="flex items-center justify-center gap-2 py-16 text-muted">
+      <Loader2 className="h-5 w-5 animate-spin text-accent" />
+      <span className="text-sm">Loading…</span>
+    </div>
+  );
 }
