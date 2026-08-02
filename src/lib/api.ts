@@ -73,4 +73,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ message }),
     }),
+  uploadPdf: async (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${API_BASE}/ingest/pdf`, { method: "POST", body: form, cache: "no-store" });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || res.statusText);
+    }
+    return res.json() as Promise<{
+      filename: string;
+      tasks_created: number;
+      tasks: Record<string, unknown>[];
+    }>;
+  },
 };

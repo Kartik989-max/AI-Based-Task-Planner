@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { FileUp, X } from "lucide-react";
 import { Item, Stagger } from "@/components/motion";
 import { Btn, Card, CardHead, Field, Input, Select } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -42,6 +43,8 @@ export function OnboardingForm() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api
@@ -57,6 +60,19 @@ export function OnboardingForm() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function pickPdf(file: File | null) {
+    if (!file) {
+      setPdfFile(null);
+      return;
+    }
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      setError("Please choose a PDF file.");
+      return;
+    }
+    setError(null);
+    setPdfFile(file);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -70,7 +86,15 @@ export function OnboardingForm() {
         morning_plan_hour: Number(form.morning_plan_hour),
         side_goal_hours_per_day: Number(form.side_goal_hours_per_day),
       });
-      setStatus("Saved. Your planner now works the way you do.");
+
+      let msg = "Saved. Your planner now works the way you do.";
+      if (pdfFile) {
+        const res = await api.uploadPdf(pdfFile);
+        msg += ` Parsed ${res.tasks_created} task${res.tasks_created === 1 ? "" : "s"} from ${res.filename}.`;
+        setPdfFile(null);
+        if (fileRef.current) fileRef.current.value = "";
+      }
+      setStatus(msg);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -206,6 +230,78 @@ export function OnboardingForm() {
                 </Field>
               </div>
             </div>
+          </Card>
+        </Item>
+
+        {/* Document upload ───────────────────────────── */}
+        <Item className="col-full">
+          <Card lift className="p-6 md:p-8">
+            <CardHead
+              label="04 — Documents"
+              title={
+                <>
+                  Seed your <em>plan</em>
+                </>
+              }
+            />
+            <p className="body mb-5 max-w-prose ink-2">
+              Upload a syllabus, study plan, or project brief. We&rsquo;ll break it into tasks and push them to Todoist
+              when you save.
+            </p>
+
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              className="sr-only"
+              onChange={(e) => pickPdf(e.target.files?.[0] ?? null)}
+            />
+
+            {pdfFile ? (
+              <div className="file-picked">
+                <div className="flex min-w-0 items-center gap-3">
+                  <FileUp className="h-5 w-5 shrink-0 accent" strokeWidth={1.6} />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium ink">{pdfFile.name}</p>
+                    <p className="mono ink-3 mt-0.5 text-xs">{(pdfFile.size / 1024).toFixed(0)} KB · ready on save</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn-ghost file-picked-remove"
+                  aria-label="Remove file"
+                  onClick={() => {
+                    setPdfFile(null);
+                    if (fileRef.current) fileRef.current.value = "";
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="file-drop"
+                onClick={() => fileRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.add("is-drag");
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.remove("is-drag");
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.remove("is-drag");
+                  pickPdf(e.dataTransfer.files?.[0] ?? null);
+                }}
+              >
+                <FileUp className="h-6 w-6 accent" strokeWidth={1.5} />
+                <span className="mt-3 text-sm font-medium ink">Drop a PDF here or click to browse</span>
+                <span className="mono ink-3 mt-1 text-xs">Syllabus, roadmap, assignment sheet…</span>
+              </button>
+            )}
           </Card>
         </Item>
 
