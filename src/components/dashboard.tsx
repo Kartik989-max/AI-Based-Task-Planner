@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Calendar, CheckCircle2, RefreshCw, Sparkles, Sun } from "lucide-react";
 import { AnimatedIcon } from "@/components/animated-icon";
-import { CardAccent, EmptyIllustration } from "@/components/ambient";
+import { EmptyIllustration } from "@/components/ambient";
 import { FadeIn } from "@/components/motion";
 import { Glass, PageLoader, Pill, ProgressBar, Skeleton } from "@/components/ui";
 import { api, type Health, type Progress as GoalProgress } from "@/lib/api";
@@ -110,8 +110,7 @@ export function Dashboard() {
   return (
     <FadeIn className="bento-asymmetric">
       <div className="bento-span-7 bento-row-2">
-        <Glass glow className="card-with-accent h-full p-6 md:p-8">
-          <CardAccent variant="sage" />
+        <Glass glow className="h-full p-6 md:p-8">
           <p className="greeting-text">{greeting}</p>
 
           <div className="mt-2 flex items-start justify-between gap-4">
@@ -180,8 +179,7 @@ export function Dashboard() {
       </div>
 
       <div className="bento-span-5">
-        <Glass className="card-with-accent flex h-full flex-col justify-between p-6">
-          <CardAccent variant="sky" />
+        <Glass className="flex h-full flex-col justify-between p-6">
           <div className="icon-badge">
             <AnimatedIcon icon={CheckCircle2} className="h-5 w-5" />
           </div>
@@ -197,8 +195,7 @@ export function Dashboard() {
       </div>
 
       <div className="bento-span-5">
-        <Glass className="card-with-accent flex h-full flex-col justify-between p-6">
-          <CardAccent variant="sand" />
+        <Glass className="flex h-full flex-col justify-between p-6">
           <div className="icon-badge">
             <AnimatedIcon icon={CheckCircle2} className="h-5 w-5" />
           </div>

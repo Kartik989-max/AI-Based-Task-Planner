@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LayoutDashboard, Menu, Moon, Settings, Sparkles, Sun, Target, X } from "lucide-react";
 import { AmbientBackground } from "@/components/ambient";
+import { ParticleField } from "@/components/particles";
 import { AnimatedIcon } from "@/components/animated-icon";
 import { FadeIn } from "@/components/motion";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
@@ -59,6 +60,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   return (
     <>
       <AmbientBackground />
+      <ParticleField />
       <div className="app-layout">
         {mobileOpen ? (
           <button

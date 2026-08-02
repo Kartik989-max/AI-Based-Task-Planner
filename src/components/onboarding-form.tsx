@@ -6,6 +6,19 @@ import { FadeIn } from "@/components/motion";
 import { Btn, Field, Glass, Input, Select } from "@/components/ui";
 import { api } from "@/lib/api";
 
+const TIMEZONES = [
+  "Asia/Kolkata",
+  "Asia/Dubai",
+  "Asia/Singapore",
+  "Asia/Tokyo",
+  "Europe/London",
+  "Europe/Berlin",
+  "America/New_York",
+  "America/Chicago",
+  "America/Los_Angeles",
+  "UTC",
+];
+
 const defaultForm = {
   role: "student",
   work_start: "09:00",
@@ -90,31 +103,60 @@ export function OnboardingForm() {
             />
           </Field>
           <Field label="Work start">
-            <Input value={form.work_start} onChange={(e) => setForm({ ...form, work_start: e.target.value })} />
+            <Input
+              type="time"
+              value={form.work_start}
+              onChange={(e) => setForm({ ...form, work_start: e.target.value })}
+            />
           </Field>
           <Field label="Work end">
-            <Input value={form.work_end} onChange={(e) => setForm({ ...form, work_end: e.target.value })} />
+            <Input type="time" value={form.work_end} onChange={(e) => setForm({ ...form, work_end: e.target.value })} />
           </Field>
           <Field label="Deep work start">
-            <Input value={form.deep_work_start} onChange={(e) => setForm({ ...form, deep_work_start: e.target.value })} />
+            <Input
+              type="time"
+              value={form.deep_work_start}
+              onChange={(e) => setForm({ ...form, deep_work_start: e.target.value })}
+            />
           </Field>
           <Field label="Deep work end">
-            <Input value={form.deep_work_end} onChange={(e) => setForm({ ...form, deep_work_end: e.target.value })} />
+            <Input
+              type="time"
+              value={form.deep_work_end}
+              onChange={(e) => setForm({ ...form, deep_work_end: e.target.value })}
+            />
+          </Field>
+          <Field label="Quiet hours start">
+            <Input
+              type="time"
+              value={form.quiet_hours_start}
+              onChange={(e) => setForm({ ...form, quiet_hours_start: e.target.value })}
+            />
+          </Field>
+          <Field label="Quiet hours end">
+            <Input
+              type="time"
+              value={form.quiet_hours_end}
+              onChange={(e) => setForm({ ...form, quiet_hours_end: e.target.value })}
+            />
           </Field>
           <Field label="Max tasks / day">
-            <Input
-              type="number"
-              min={1}
-              max={10}
-              value={form.max_tasks_per_day}
+            <Select
+              value={String(form.max_tasks_per_day)}
               onChange={(e) => setForm({ ...form, max_tasks_per_day: Number(e.target.value) })}
-            />
+            >
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </Select>
           </Field>
           <Field label="Focus day">
             <Input
+              type="date"
               value={form.focus_day}
               onChange={(e) => setForm({ ...form, focus_day: e.target.value })}
-              placeholder="2026-08-15"
             />
           </Field>
           <Field label="Notifications">
@@ -128,7 +170,13 @@ export function OnboardingForm() {
             </Select>
           </Field>
           <Field label="Timezone">
-            <Input value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
+            <Select value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}>
+              {[...new Set([form.timezone, ...TIMEZONES])].map((tz) => (
+                <option key={tz} value={tz}>
+                  {tz.replace(/_/g, " ")}
+                </option>
+              ))}
+            </Select>
           </Field>
           <div className="md:col-span-2">
             <Btn type="submit" loading={saving}>

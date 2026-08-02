@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Calendar, Code2 } from "lucide-react";
 import { FadeIn } from "@/components/motion";
-import { Btn, Field, Glass, Input, Skeleton } from "@/components/ui";
+import { Btn, Field, Glass, Input, Select, Skeleton } from "@/components/ui";
 import { api } from "@/lib/api";
 
 export function SettingsPanel() {
@@ -127,10 +127,14 @@ export function SettingsPanel() {
               />
             </Field>
             <Field label="Difficulty">
-              <Input
+              <Select
                 value={leetcode.difficulty}
                 onChange={(e) => setLeetcode({ ...leetcode, difficulty: e.target.value })}
-              />
+              >
+                <option value="Easy">Easy (Low)</option>
+                <option value="Medium">Medium</option>
+                <option value="Hard">Hard (High)</option>
+              </Select>
             </Field>
             <Btn type="submit" loading={logging}>
               Log solve
