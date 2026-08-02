@@ -1,97 +1,133 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Code2, Target, Trophy } from "lucide-react";
-import { FadeIn } from "@/components/motion";
-import { Glass, Pill, ProgressBar, Skeleton } from "@/components/ui";
+import { EmptyIllustration } from "@/components/ambient";
+import { CountUp, Item, Stagger } from "@/components/motion";
+import { Bar, Card, CardHead, Eyebrow, Pill, Ring, Skeleton } from "@/components/ui";
 import { api, type Progress as GoalProgress } from "@/lib/api";
+
+const DIFFICULTY_ORDER = ["Easy", "Medium", "Hard"];
 
 export function ProgressView() {
   const [progress, setProgress] = useState<GoalProgress | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.progress()
+    api
+      .progress()
       .then(setProgress)
       .catch(() => undefined)
       .finally(() => setLoading(false));
   }, []);
 
-  const byDiff = progress?.leetcode.by_difficulty || {};
-
   if (loading) {
     return (
-      <div className="bento-asymmetric">
-        <Skeleton className="bento-span-8 bento-row-2 h-72" />
-        <Skeleton className="bento-span-4 h-72" />
+      <div className="bento">
+        <Skeleton className="col-8 h-80" />
+        <Skeleton className="col-4 h-80" />
+        <Skeleton className="col-full h-40" />
       </div>
     );
   }
 
+  const pct = progress?.progress_pct ?? 0;
+  const byDiff = progress?.leetcode.by_difficulty ?? {};
+  const diffEntries = Object.entries(byDiff).sort(
+    (a, b) => DIFFICULTY_ORDER.indexOf(a[0]) - DIFFICULTY_ORDER.indexOf(b[0]),
+  );
+  const leetTotal = progress?.leetcode.total ?? 0;
+
   return (
-    <FadeIn className="bento-asymmetric">
-      <div className="bento-span-8 bento-row-2">
-        <Glass glow className="flex h-full flex-col justify-between p-8 md:p-10">
-          <div className="flex items-center gap-3">
-            <div className="icon-badge">
-              <Target className="h-5 w-5" />
-            </div>
-            <h2 className="display-lg text-heading">Mission progress</h2>
-          </div>
-
-          <p className="mt-6 text-body text-muted">{progress?.main_goal || "Complete Setup to set your mission"}</p>
-
-          <div className="mt-8 grid grid-cols-3 gap-6">
-            <div>
-              <p className="stat-num">{progress?.progress_pct ?? 0}%</p>
-              <p className="stat-label mt-2">Complete</p>
-            </div>
-            <div>
-              <p className="stat-num">{progress?.completed ?? 0}</p>
-              <p className="stat-label mt-2">Done</p>
-            </div>
-            <div>
-              <p className="stat-num">{progress?.pending ?? 0}</p>
-              <p className="stat-label mt-2">Left</p>
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <ProgressBar value={progress?.progress_pct || 0} />
-          </div>
-        </Glass>
-      </div>
-
-      <div className="bento-span-4">
-        <Glass className="flex h-full flex-col p-8">
-          <div className="flex items-center gap-3">
-            <div className="icon-badge">
-              <Code2 className="h-5 w-5" />
-            </div>
-            <h2 className="display-lg text-heading">LeetCode</h2>
-          </div>
-
-          <div className="mt-auto pt-8">
-            <div className="flex items-end gap-2">
-              <Trophy className="mb-2 h-6 w-6 text-accent" />
-              <p className="stat-num">{progress?.leetcode.total ?? 0}</p>
-            </div>
-            <p className="stat-label mt-2">Problems solved</p>
-
-            <div className="mt-6 flex flex-wrap gap-2">
-              {Object.keys(byDiff).length === 0 ? (
-                <Pill>Start logging in Config</Pill>
-              ) : (
-                Object.entries(byDiff).map(([diff, count]) => (
-                  <Pill key={diff}>
-                    {diff}: {count}
-                  </Pill>
-                ))
+    <Stagger className="bento">
+      {/* Mission ─────────────────────────────────────── */}
+      <Item className="col-8">
+        <Card hero className="flex h-full flex-col justify-between gap-8 p-6 md:p-10">
+          <div>
+            <Eyebrow>The mission</Eyebrow>
+            <p className="display-sm mt-4 max-w-[22ch]">
+              {progress?.main_goal || (
+                <>
+                  Nothing set <em>yet</em>
+                </>
               )}
-            </div>
+            </p>
           </div>
-        </Glass>
-      </div>
-    </FadeIn>
+
+          <div className="grid grid-cols-3 gap-6">
+            {[
+              { label: "Complete", value: pct, suffix: "%" },
+              { label: "Done", value: progress?.completed ?? 0 },
+              { label: "Remaining", value: progress?.pending ?? 0 },
+            ].map(({ label, value, suffix }) => (
+              <div key={label}>
+                <p className="stat">
+                  <CountUp value={value} suffix={suffix ?? ""} />
+                </p>
+                <p className="stat-label mt-3">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          <Bar value={pct} />
+        </Card>
+      </Item>
+
+      {/* Ring ────────────────────────────────────────── */}
+      <Item className="col-4">
+        <Card lift className="flex h-full flex-col items-center justify-center gap-6 p-6 md:p-8">
+          <Ring value={pct} size={190}>
+            <div>
+              <p className="stat">
+                <CountUp value={pct} />
+              </p>
+              <p className="stat-label mt-3">percent</p>
+            </div>
+          </Ring>
+          <p className="body text-center max-w-[24ch]">
+            {pct >= 100
+              ? "Finished. Take the evening off."
+              : pct > 0
+                ? "Steady. Keep the pace gentle and consistent."
+                : "Nothing logged yet — the first task is the hard one."}
+          </p>
+        </Card>
+      </Item>
+
+      {/* LeetCode ────────────────────────────────────── */}
+      <Item className="col-full">
+        <Card className="p-6 md:p-8">
+          <CardHead
+            label="Practice"
+            title={
+              <>
+                LeetCode <em>ledger</em>
+              </>
+            }
+            aside={<Pill tone={leetTotal > 0 ? "ok" : "default"}>{leetTotal} solved</Pill>}
+          />
+
+          {diffEntries.length === 0 ? (
+            <div className="empty">
+              <EmptyIllustration />
+              <p className="body max-w-[34ch]">No solves logged yet. Add your first one from Config.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-3">
+              {diffEntries.map(([diff, count]) => (
+                <div key={diff} className="sunk p-5">
+                  <p className="stat-sm">
+                    <CountUp value={count} />
+                  </p>
+                  <p className="stat-label mt-2">{diff}</p>
+                  <div className="mt-4">
+                    <Bar value={leetTotal ? (count / leetTotal) * 100 : 0} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </Item>
+    </Stagger>
   );
 }

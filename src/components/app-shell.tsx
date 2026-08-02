@@ -2,113 +2,194 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { LayoutDashboard, Menu, Moon, Settings, Sparkles, Sun, Target, X } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { CircleDashed, Compass, Moon, Sun, Target, Waves } from "lucide-react";
+import type { ReactNode } from "react";
 import { AmbientBackground } from "@/components/ambient";
 import { ParticleField } from "@/components/particles";
-import { AnimatedIcon } from "@/components/animated-icon";
-import { FadeIn } from "@/components/motion";
+import { FadeIn, glide } from "@/components/motion";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
-import { BtnGhost } from "@/components/ui";
+import { Eyebrow } from "@/components/ui";
 
-const links = [
-  { href: "/", label: "Home", icon: LayoutDashboard },
-  { href: "/onboarding", label: "Setup", icon: Sparkles },
-  { href: "/progress", label: "Goals", icon: Target },
-  { href: "/settings", label: "Config", icon: Settings },
-];
-
-const pageTitles: Record<string, { title: string; subtitle: string }> = {
-  "/": { title: "Dashboard", subtitle: "Your daily overview and quick actions" },
-  "/onboarding": { title: "Setup", subtitle: "Personalize how your planner works" },
-  "/progress": { title: "Goals", subtitle: "Track your mission and milestones" },
-  "/settings": { title: "Config", subtitle: "Integrations and preferences" },
+type Route = {
+  href: string;
+  label: string;
+  index: string;
+  icon: typeof Compass;
+  kicker: string;
+  title: ReactNode;
+  subtitle: string;
 };
 
-function ShellInner({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+const routes: Route[] = [
+  {
+    href: "/",
+    label: "Today",
+    index: "01",
+    icon: Compass,
+    kicker: "01 — Dashboard",
+    title: (
+      <>
+        Today, at a <em>glance</em>
+      </>
+    ),
+    subtitle: "One page. Everything that matters, nothing that doesn't.",
+  },
+  {
+    href: "/onboarding",
+    label: "Setup",
+    index: "02",
+    icon: Waves,
+    kicker: "02 — Setup",
+    title: (
+      <>
+        Teach it how you <em>work</em>
+      </>
+    ),
+    subtitle: "Set the rhythm once — the planner keeps time from here.",
+  },
+  {
+    href: "/progress",
+    label: "Goals",
+    index: "03",
+    icon: Target,
+    kicker: "03 — Goals",
+    title: (
+      <>
+        The long <em>game</em>
+      </>
+    ),
+    subtitle: "Where you're headed, and how far along you already are.",
+  },
+  {
+    href: "/settings",
+    label: "Config",
+    index: "04",
+    icon: CircleDashed,
+    kicker: "04 — Config",
+    title: (
+      <>
+        Wires and <em>switches</em>
+      </>
+    ),
+    subtitle: "Connect the things that feed your plan.",
+  },
+];
+
+/** Sun ⇄ moon crossfade with a quarter turn. */
+function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const { theme, toggle } = useTheme();
-  const page = pageTitles[pathname] ?? pageTitles["/"];
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const reduced = useReducedMotion();
+  const dark = theme === "dark";
+  const Icon = dark ? Sun : Moon;
 
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className={`theme-btn ${compact ? "theme-btn--icon" : ""}`.trim()}
+      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+    >
+      <span className="theme-orb">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.span
+            key={theme}
+            initial={reduced ? { opacity: 0 } : { opacity: 0, rotate: -90, scale: 0.5 }}
+            animate={{ opacity: 1, rotate: 0, scale: 1 }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, rotate: 90, scale: 0.5 }}
+            transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+            className="grid place-items-center"
+          >
+            <Icon className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.6} />
+          </motion.span>
+        </AnimatePresence>
+      </span>
+      {compact ? null : <span className="rail-label">{dark ? "Light mode" : "Dark mode"}</span>}
+    </button>
+  );
+}
 
-  useEffect(() => {
-    document.body.style.overflow = mobileOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [mobileOpen]);
+function Rail({ pathname }: { pathname: string }) {
+  return (
+    <aside className="rail" aria-label="Main navigation">
+      <div className="rail-mark">
+        <span className="mark-glyph" aria-hidden>
+          gt
+        </span>
+        <span className="rail-label text-[0.95rem] font-semibold tracking-tight ink">Guide Todoo</span>
+      </div>
 
-  const navLinks = links.map(({ href, label, icon }) => {
-    const active = pathname === href;
-    return (
-      <Link
-        key={href}
-        href={href}
-        className={`sidebar-link ${active ? "active" : ""}`}
-        onClick={() => setMobileOpen(false)}
-      >
-        <AnimatedIcon icon={icon} className="h-5 w-5" variant="scale" />
-        <span>{label}</span>
-      </Link>
-    );
-  });
+      <nav className="rail-nav">
+        {routes.map(({ href, label, index, icon: Icon }) => {
+          const active = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={`rail-link ${active ? "is-active" : ""}`.trim()}
+            >
+              {active ? <motion.span layoutId="rail-pill" className="rail-pill" transition={glide} /> : null}
+              <span className="rail-link-icon">
+                <Icon className="h-[1.15rem] w-[1.15rem]" strokeWidth={1.6} />
+              </span>
+              <span className="rail-label">{label}</span>
+              <span className="rail-index">{index}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="rail-foot">
+        <ThemeToggle />
+      </div>
+    </aside>
+  );
+}
+
+function Dock({ pathname }: { pathname: string }) {
+  return (
+    <nav className="dock" aria-label="Main navigation">
+      {routes.map(({ href, label, icon: Icon }) => {
+        const active = pathname === href;
+        return (
+          <Link
+            key={href}
+            href={href}
+            aria-label={label}
+            aria-current={active ? "page" : undefined}
+            className={`dock-link ${active ? "is-active" : ""}`.trim()}
+          >
+            {active ? <motion.span layoutId="dock-pill" className="dock-pill" transition={glide} /> : null}
+            <Icon className="h-[1.15rem] w-[1.15rem]" strokeWidth={1.6} />
+          </Link>
+        );
+      })}
+      <span className="dock-sep" aria-hidden />
+      <ThemeToggle compact />
+    </nav>
+  );
+}
+
+function ShellInner({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const page = routes.find((r) => r.href === pathname) ?? routes[0]!;
 
   return (
     <>
       <AmbientBackground />
       <ParticleField />
-      <div className="app-layout">
-        {mobileOpen ? (
-          <button
-            type="button"
-            className="sidebar-backdrop"
-            aria-label="Close navigation"
-            onClick={() => setMobileOpen(false)}
-          />
-        ) : null}
 
-        <aside className={`sidebar ${mobileOpen ? "sidebar--open" : ""}`} aria-label="Main navigation">
-          <div className="sidebar-brand">
-            <span className="brand">Guide Todoo</span>
-          </div>
+      <div className="shell">
+        <Rail pathname={pathname} />
+        <Dock pathname={pathname} />
 
-          <nav className="sidebar-nav">{navLinks}</nav>
-
-          <div className="sidebar-footer">
-            <BtnGhost onClick={toggle} aria-label="Toggle theme" className="sidebar-theme-btn">
-              <AnimatedIcon icon={theme === "dark" ? Sun : Moon} className="h-4 w-4" />
-              <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
-            </BtnGhost>
-          </div>
-        </aside>
-
-        <div className="main-column">
-          <header className="mobile-header">
-            <button
-              type="button"
-              className="mobile-menu-btn"
-              aria-label={mobileOpen ? "Close menu" : "Open menu"}
-              aria-expanded={mobileOpen}
-              onClick={() => setMobileOpen((o) => !o)}
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-            <span className="brand mobile-brand">Guide Todoo</span>
-            <BtnGhost onClick={toggle} aria-label="Toggle theme" className="mobile-theme-btn">
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </BtnGhost>
-          </header>
-
-          <FadeIn>
-            <div className="page-intro">
-              <h1 className="display-xl text-heading">{page.title}</h1>
-              <p className="mt-1 text-body text-muted">{page.subtitle}</p>
-              <div className="section-divider" />
-            </div>
+        <div className="canvas">
+          <FadeIn className="page-head">
+            <Eyebrow>{page.kicker}</Eyebrow>
+            <h1 className="display mt-4">{page.title}</h1>
+            <p className="lede mt-4">{page.subtitle}</p>
+            <div className="rule mt-8" />
           </FadeIn>
 
           <main>{children}</main>
@@ -118,7 +199,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider>
       <ShellInner>{children}</ShellInner>

@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
-import { FadeIn } from "@/components/motion";
-import { Btn, Field, Glass, Input, Select } from "@/components/ui";
+import { Item, Stagger } from "@/components/motion";
+import { Btn, Card, CardHead, Field, Input, Select } from "@/components/ui";
 import { api } from "@/lib/api";
 
 const TIMEZONES = [
@@ -45,13 +44,18 @@ export function OnboardingForm() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.onboardStatus()
+    api
+      .onboardStatus()
       .then((s) => {
         if (!s.onboarded) return;
         return api.profile().then((res) => setForm({ ...defaultForm, ...(res.profile as typeof defaultForm) }));
       })
       .catch(() => undefined);
   }, []);
+
+  function set<K extends keyof typeof defaultForm>(key: K, value: (typeof defaultForm)[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,7 +70,7 @@ export function OnboardingForm() {
         morning_plan_hour: Number(form.morning_plan_hour),
         side_goal_hours_per_day: Number(form.side_goal_hours_per_day),
       });
-      setStatus("Profile saved — your AI planner is now personalized.");
+      setStatus("Saved. Your planner now works the way you do.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -75,118 +79,147 @@ export function OnboardingForm() {
   }
 
   return (
-    <FadeIn>
-      <Glass glow className="overflow-hidden p-6 md:p-10">
-        <div className="mb-8 flex items-center gap-4">
-          <div className="icon-badge">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="display-lg text-heading">Personalize your planner</h2>
-            <p className="text-body text-muted">Tell the AI how you work — it remembers everything</p>
-          </div>
-        </div>
+    <form onSubmit={submit}>
+      <Stagger className="bento">
+        {/* Who you are ───────────────────────────────── */}
+        <Item className="col-full">
+          <Card hero className="p-6 md:p-8">
+            <CardHead
+              label="01 — Identity"
+              title={
+                <>
+                  Who&rsquo;s <em>planning</em>
+                </>
+              }
+            />
+            <div className="grid gap-5 md:grid-cols-3">
+              <Field label="Role">
+                <Select value={form.role} onChange={(e) => set("role", e.target.value)}>
+                  <option value="student">Student</option>
+                  <option value="professional">Professional</option>
+                  <option value="both">Both</option>
+                </Select>
+              </Field>
+              <Field label="Timezone">
+                <Select value={form.timezone} onChange={(e) => set("timezone", e.target.value)}>
+                  {[...new Set([form.timezone, ...TIMEZONES])].map((tz) => (
+                    <option key={tz} value={tz}>
+                      {tz.replace(/_/g, " ")}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Main goal">
+                <Input
+                  value={form.main_goal}
+                  onChange={(e) => set("main_goal", e.target.value)}
+                  placeholder="Crack FAANG interviews by Dec 2026"
+                />
+              </Field>
+            </div>
+          </Card>
+        </Item>
 
-        <form className="grid gap-5 md:grid-cols-2" onSubmit={submit}>
-          <Field label="Role">
-            <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-              <option value="student">Student</option>
-              <option value="professional">Professional</option>
-              <option value="both">Both</option>
-            </Select>
-          </Field>
-          <Field label="Main goal">
-            <Input
-              value={form.main_goal}
-              onChange={(e) => setForm({ ...form, main_goal: e.target.value })}
-              placeholder="Crack FAANG interviews by Dec 2026"
+        {/* Rhythm ────────────────────────────────────── */}
+        <Item className="col-7">
+          <Card lift className="h-full p-6 md:p-8">
+            <CardHead
+              label="02 — Rhythm"
+              title={
+                <>
+                  When you&rsquo;re <em>sharp</em>
+                </>
+              }
             />
-          </Field>
-          <Field label="Work start">
-            <Input
-              type="time"
-              value={form.work_start}
-              onChange={(e) => setForm({ ...form, work_start: e.target.value })}
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Work start">
+                <Input type="time" value={form.work_start} onChange={(e) => set("work_start", e.target.value)} />
+              </Field>
+              <Field label="Work end">
+                <Input type="time" value={form.work_end} onChange={(e) => set("work_end", e.target.value)} />
+              </Field>
+              <Field label="Deep work start">
+                <Input
+                  type="time"
+                  value={form.deep_work_start}
+                  onChange={(e) => set("deep_work_start", e.target.value)}
+                />
+              </Field>
+              <Field label="Deep work end">
+                <Input type="time" value={form.deep_work_end} onChange={(e) => set("deep_work_end", e.target.value)} />
+              </Field>
+              <Field label="Max tasks / day">
+                <Select
+                  value={String(form.max_tasks_per_day)}
+                  onChange={(e) => set("max_tasks_per_day", Number(e.target.value))}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Focus day">
+                <Input type="date" value={form.focus_day} onChange={(e) => set("focus_day", e.target.value)} />
+              </Field>
+            </div>
+          </Card>
+        </Item>
+
+        {/* Boundaries ────────────────────────────────── */}
+        <Item className="col-5">
+          <Card lift className="h-full p-6 md:p-8">
+            <CardHead
+              label="03 — Boundaries"
+              title={
+                <>
+                  When to stay <em>quiet</em>
+                </>
+              }
             />
-          </Field>
-          <Field label="Work end">
-            <Input type="time" value={form.work_end} onChange={(e) => setForm({ ...form, work_end: e.target.value })} />
-          </Field>
-          <Field label="Deep work start">
-            <Input
-              type="time"
-              value={form.deep_work_start}
-              onChange={(e) => setForm({ ...form, deep_work_start: e.target.value })}
-            />
-          </Field>
-          <Field label="Deep work end">
-            <Input
-              type="time"
-              value={form.deep_work_end}
-              onChange={(e) => setForm({ ...form, deep_work_end: e.target.value })}
-            />
-          </Field>
-          <Field label="Quiet hours start">
-            <Input
-              type="time"
-              value={form.quiet_hours_start}
-              onChange={(e) => setForm({ ...form, quiet_hours_start: e.target.value })}
-            />
-          </Field>
-          <Field label="Quiet hours end">
-            <Input
-              type="time"
-              value={form.quiet_hours_end}
-              onChange={(e) => setForm({ ...form, quiet_hours_end: e.target.value })}
-            />
-          </Field>
-          <Field label="Max tasks / day">
-            <Select
-              value={String(form.max_tasks_per_day)}
-              onChange={(e) => setForm({ ...form, max_tasks_per_day: Number(e.target.value) })}
-            >
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Focus day">
-            <Input
-              type="date"
-              value={form.focus_day}
-              onChange={(e) => setForm({ ...form, focus_day: e.target.value })}
-            />
-          </Field>
-          <Field label="Notifications">
-            <Select
-              value={form.notification_style}
-              onChange={(e) => setForm({ ...form, notification_style: e.target.value })}
-            >
-              <option value="gentle">Gentle</option>
-              <option value="normal">Normal</option>
-              <option value="focused">Focused</option>
-            </Select>
-          </Field>
-          <Field label="Timezone">
-            <Select value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}>
-              {[...new Set([form.timezone, ...TIMEZONES])].map((tz) => (
-                <option key={tz} value={tz}>
-                  {tz.replace(/_/g, " ")}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <div className="md:col-span-2">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Quiet from">
+                <Input
+                  type="time"
+                  value={form.quiet_hours_start}
+                  onChange={(e) => set("quiet_hours_start", e.target.value)}
+                />
+              </Field>
+              <Field label="Quiet until">
+                <Input
+                  type="time"
+                  value={form.quiet_hours_end}
+                  onChange={(e) => set("quiet_hours_end", e.target.value)}
+                />
+              </Field>
+              <div className="sm:col-span-2">
+                <Field label="Notification tone">
+                  <Select
+                    value={form.notification_style}
+                    onChange={(e) => set("notification_style", e.target.value)}
+                  >
+                    <option value="gentle">Gentle — nudge me softly</option>
+                    <option value="normal">Normal — a reasonable balance</option>
+                    <option value="focused">Focused — hold me to it</option>
+                  </Select>
+                </Field>
+              </div>
+            </div>
+          </Card>
+        </Item>
+
+        {/* Save ──────────────────────────────────────── */}
+        <Item className="col-full">
+          <div className="flex flex-wrap items-center gap-5">
             <Btn type="submit" loading={saving}>
-              Save & activate
+              Save &amp; activate
             </Btn>
-            {status ? <p className="mt-4 text-sm text-emerald-600">{status}</p> : null}
-            {error ? <p className="mt-4 text-sm text-red-500">{error}</p> : null}
+            {status ? <p className="msg-ok">{status}</p> : null}
+            {error ? <p className="msg-err">{error}</p> : null}
           </div>
-        </form>
-      </Glass>
-    </FadeIn>
+        </Item>
+      </Stagger>
+    </form>
   );
 }

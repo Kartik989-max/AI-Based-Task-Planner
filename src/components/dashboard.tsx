@@ -1,60 +1,43 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Calendar, CheckCircle2, RefreshCw, Sparkles, Sun } from "lucide-react";
-import { AnimatedIcon } from "@/components/animated-icon";
+import { ArrowUpRight, CalendarRange, Loader2, RefreshCw, Sparkles, SunMedium } from "lucide-react";
 import { EmptyIllustration } from "@/components/ambient";
-import { FadeIn } from "@/components/motion";
-import { Glass, PageLoader, Pill, ProgressBar, Skeleton } from "@/components/ui";
+import { CountUp, Item, Stagger } from "@/components/motion";
+import { Bar, Card, CardHead, Eyebrow, InlineLoader, Pill, Ring, Skeleton } from "@/components/ui";
 import { api, type Health, type Progress as GoalProgress } from "@/lib/api";
 
 const actions = [
-  {
-    id: "brief" as const,
-    icon: Sun,
-    title: "Morning Brief",
-    description: "AI summary of your day ahead",
-  },
-  {
-    id: "plan" as const,
-    icon: Calendar,
-    title: "Daily Plan",
-    description: "Schedule tasks into free slots",
-  },
-  {
-    id: "sync" as const,
-    icon: RefreshCw,
-    title: "Sync Tasks",
-    description: "Pull latest from Todoist",
-  },
-  {
-    id: "weekly" as const,
-    icon: Sparkles,
-    title: "Weekly Review",
-    description: "Progress report and insights",
-  },
+  { id: "brief" as const, num: "01", icon: SunMedium, title: "Morning brief", desc: "A short read on the day ahead" },
+  { id: "plan" as const, num: "02", icon: CalendarRange, title: "Daily plan", desc: "Drop tasks into your free windows" },
+  { id: "sync" as const, num: "03", icon: RefreshCw, title: "Sync tasks", desc: "Pull the latest from Todoist" },
+  { id: "weekly" as const, num: "04", icon: Sparkles, title: "Weekly review", desc: "Patterns worth noticing" },
 ];
 
-function getTimeGreeting(): string {
-  const hour = new Date().getHours();
+function greetingFor(hour: number): string {
+  if (hour < 5) return "Still up";
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  if (hour < 22) return "Good evening";
+  return "Winding down";
 }
 
 export function Dashboard() {
   const [health, setHealth] = useState<Health | null>(null);
   const [progress, setProgress] = useState<GoalProgress | null>(null);
   const [tasks, setTasks] = useState<Record<string, unknown>[]>([]);
-  const [brief, setBrief] = useState<string>("");
+  const [brief, setBrief] = useState("");
   const [slots, setSlots] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [greeting, setGreeting] = useState("Welcome back");
+  const [stamp, setStamp] = useState("");
 
+  // Rendered client-side only — the server has no idea what time it is for you.
   useEffect(() => {
-    setGreeting(getTimeGreeting());
+    const now = new Date();
+    const day = now.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" });
+    setStamp(`${greetingFor(now.getHours())} · ${day}`);
   }, []);
 
   useEffect(() => {
@@ -68,7 +51,7 @@ export function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function run(action: "brief" | "plan" | "sync" | "weekly") {
+  async function run(action: (typeof actions)[number]["id"]) {
     setBusy(action);
     setError(null);
     try {
@@ -98,147 +81,156 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="bento-asymmetric">
-        <Skeleton className="bento-span-7 bento-row-2 h-80" />
-        <Skeleton className="bento-span-5 h-44" />
-        <Skeleton className="bento-span-5 h-44" />
-        <Skeleton className="bento-span-full h-52" />
+      <div className="bento">
+        <Skeleton className="col-full h-40" />
+        <Skeleton className="col-7 row-2 h-80" />
+        <Skeleton className="col-5 h-64" />
+        <Skeleton className="col-5 h-40" />
+        <Skeleton className="col-full h-56" />
       </div>
     );
   }
 
+  const pct = progress?.progress_pct ?? 0;
+
   return (
-    <FadeIn className="bento-asymmetric">
-      <div className="bento-span-7 bento-row-2">
-        <Glass glow className="h-full p-6 md:p-8">
-          <p className="greeting-text">{greeting}</p>
+    <Stagger className="bento">
+      {/* Actions ─────────────────────────────────────── */}
+      <Item className="col-full">
+        <div className="tiles">
+          {actions.map(({ id, num, icon: Icon, title, desc }) => (
+            <button key={id} type="button" className="tile" disabled={!!busy} onClick={() => run(id)}>
+              <span className="tile-num">{num}</span>
+              <span className="tile-icon">
+                {busy === id ? <Loader2 className="h-4 w-4 spin" /> : <Icon className="h-4 w-4" strokeWidth={1.6} />}
+              </span>
+              <span className="tile-title">{title}</span>
+              <span className="tile-desc">{desc}</span>
+            </button>
+          ))}
+        </div>
+      </Item>
 
-          <div className="mt-2 flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="icon-badge">
-                <AnimatedIcon icon={Sun} className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="display-lg text-heading">Command Center</h2>
-                <p className="text-body text-muted">Your daily AI briefing & actions</p>
-              </div>
-            </div>
-            <Pill tone={health?.ok ? "ok" : "warn"} pulse={health?.ok}>
-              {health?.ok ? "Live" : "Offline"}
-            </Pill>
-          </div>
+      {/* Brief ───────────────────────────────────────── */}
+      <Item className="col-7 row-2">
+        <Card hero className="flex h-full flex-col p-6 md:p-8">
+          <CardHead
+            label={stamp || "Assistant"}
+            title={
+              <>
+                Your <em>brief</em>
+              </>
+            }
+            aside={
+              <Pill tone={health?.ok ? "ok" : "warn"} pulse={health?.ok}>
+                {health?.ok ? "Live" : "Offline"}
+              </Pill>
+            }
+          />
 
-          <div className="action-grid mt-8">
-            {actions.map(({ id, icon, title, description }) => (
-              <button
-                key={id}
-                type="button"
-                className="action-card"
-                disabled={!!busy}
-                onClick={() => run(id)}
-              >
-                <span className="action-card-icon">
-                  {busy === id ? (
-                    <RefreshCw className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <AnimatedIcon icon={icon} className="h-5 w-5" variant="bounce" />
-                  )}
-                </span>
-                <span className="action-card-title">{title}</span>
-                <span className="action-card-desc">{description}</span>
-              </button>
-            ))}
-          </div>
-
-          {busy ? <PageLoader /> : null}
-          {error ? <p className="mt-4 text-sm text-red-500">{error}</p> : null}
-
-          <div className="section-divider section-divider--inset mt-6" />
-
-          <div className="panel-inner mt-5 p-5">
-            {brief ? (
-              <pre className="max-h-56 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-muted">{brief}</pre>
+          <div className="sunk flex-1 p-5">
+            {busy ? (
+              <InlineLoader label="Composing" />
+            ) : brief ? (
+              <div className="prose-out">{brief}</div>
             ) : (
-              <div className="empty-state">
+              <div className="empty">
                 <EmptyIllustration />
-                <p className="text-sm text-muted-2">Pick an action above to generate your plan</p>
+                <p className="body max-w-[26ch]">Pick an action above and your plan appears right here.</p>
               </div>
             )}
           </div>
 
+          {error ? <p className="msg-err mt-4">{error}</p> : null}
+
           {slots.length > 0 ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {slots.map((s) => (
-                <span key={s} className="slot-chip">
-                  {s}
-                </span>
-              ))}
+            <div className="mt-5">
+              <Eyebrow>Free windows</Eyebrow>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {slots.map((s) => (
+                  <span key={s} className="chip">
+                    {s}
+                  </span>
+                ))}
+              </div>
             </div>
           ) : null}
-        </Glass>
-      </div>
+        </Card>
+      </Item>
 
-      <div className="bento-span-5">
-        <Glass className="flex h-full flex-col justify-between p-6">
-          <div className="icon-badge">
-            <AnimatedIcon icon={CheckCircle2} className="h-5 w-5" />
-          </div>
-          <div className="mt-4">
-            <p className="stat-num">{progress?.progress_pct ?? 0}%</p>
-            <p className="stat-label mt-1">Goal progress</p>
-          </div>
-          <div className="mt-4">
-            <ProgressBar value={progress?.progress_pct || 0} />
-          </div>
-          <p className="mt-3 truncate text-xs text-muted">{progress?.main_goal || "Set a goal in Setup"}</p>
-        </Glass>
-      </div>
-
-      <div className="bento-span-5">
-        <Glass className="flex h-full flex-col justify-between p-6">
-          <div className="icon-badge">
-            <AnimatedIcon icon={CheckCircle2} className="h-5 w-5" />
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
+      {/* Goal ring ───────────────────────────────────── */}
+      <Item className="col-5">
+        <Card lift className="flex h-full flex-col items-center justify-center p-6 md:p-8">
+          <Ring value={pct}>
             <div>
-              <p className="text-2xl font-semibold text-heading">{progress?.completed ?? 0}</p>
-              <p className="stat-label">Done</p>
+              <p className="stat">
+                <CountUp value={pct} />
+              </p>
+              <p className="stat-label mt-3">percent</p>
             </div>
-            <div>
-              <p className="text-2xl font-semibold text-heading">{progress?.pending ?? 0}</p>
-              <p className="stat-label">Pending</p>
-            </div>
-          </div>
-          <p className="mt-3 text-xs text-muted">
-            LeetCode {progress?.leetcode.total ?? 0} · {health?.onboarded ? "Onboarded" : "Needs setup"}
-          </p>
-        </Glass>
-      </div>
+          </Ring>
+          <p className="stat-label mt-6 accent">Goal progress</p>
+          <p className="body mt-2 max-w-[30ch] text-center">{progress?.main_goal || "Set your mission in Setup"}</p>
+        </Card>
+      </Item>
 
-      <div className="bento-span-full">
-        <Glass className="p-6 md:p-8">
-          <div className="section-divider section-divider--inset mb-5" />
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="display-lg text-heading">Pending tasks</h2>
-            <Pill>{tasks.length} active</Pill>
+      {/* Counts ──────────────────────────────────────── */}
+      <Item className="col-5">
+        <Card lift className="h-full p-6 md:p-8">
+          <Eyebrow>Tally</Eyebrow>
+          <div className="mt-5 grid grid-cols-3 gap-4">
+            {[
+              { label: "Done", value: progress?.completed ?? 0 },
+              { label: "Pending", value: progress?.pending ?? 0 },
+              { label: "LeetCode", value: progress?.leetcode.total ?? 0 },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <p className="stat-sm">
+                  <CountUp value={value} />
+                </p>
+                <p className="stat-label mt-2">{label}</p>
+              </div>
+            ))}
           </div>
+          <div className="mt-6">
+            <Bar value={pct} />
+          </div>
+          <p className="mono ink-3 mt-4">{health?.onboarded ? "Profile active" : "Setup incomplete"}</p>
+        </Card>
+      </Item>
+
+      {/* Tasks ───────────────────────────────────────── */}
+      <Item className="col-full">
+        <Card className="p-6 md:p-8">
+          <CardHead
+            label="Queue"
+            title={
+              <>
+                Waiting on <em>you</em>
+              </>
+            }
+            aside={<Pill>{tasks.length} open</Pill>}
+          />
+
           {tasks.length === 0 ? (
-            <div className="empty-state py-6">
+            <div className="empty">
               <EmptyIllustration />
-              <p className="text-sm text-muted-2">No pending tasks — ingest a PDF or chat to get started</p>
+              <p className="body max-w-[34ch]">Nothing queued. Ingest a PDF or send a message to fill this up.</p>
             </div>
           ) : (
-            <ul className="space-y-2">
-              {tasks.map((task) => (
-                <li key={String(task.id)} className="task-row text-sm">
-                  <span className="font-medium text-heading">{String(task.title)}</span>
-                  {task.due_date ? <span className="ml-2 text-muted-2">· {String(task.due_date)}</span> : null}
+            <ul>
+              {tasks.map((task, i) => (
+                <li key={String(task.id)} className="task">
+                  <span className="task-num">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="task-title">{String(task.title)}</span>
+                  {task.due_date ? <span className="task-meta">{String(task.due_date)}</span> : null}
+                  <ArrowUpRight className="task-arrow h-4 w-4" strokeWidth={1.6} />
                 </li>
               ))}
             </ul>
           )}
-        </Glass>
-      </div>
-    </FadeIn>
+        </Card>
+      </Item>
+    </Stagger>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
 type Theme = "dark" | "light";
 
@@ -16,20 +16,25 @@ export function useTheme() {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
 
+  // The boot script in layout.tsx already painted the correct theme
+  // (stored preference, else system). Read it back so React agrees.
   useEffect(() => {
-    const saved = (localStorage.getItem("theme") as Theme | null) || "light";
-    setTheme(saved);
-    document.documentElement.setAttribute("data-theme", saved);
+    const applied = document.documentElement.getAttribute("data-theme");
+    if (applied === "dark" || applied === "light") setTheme(applied);
   }, []);
 
-  function toggle() {
+  const toggle = useCallback(() => {
     setTheme((prev) => {
       const next = prev === "dark" ? "light" : "dark";
-      localStorage.setItem("theme", next);
+      try {
+        localStorage.setItem("theme", next);
+      } catch {
+        /* storage blocked — the theme still applies for this session */
+      }
       document.documentElement.setAttribute("data-theme", next);
       return next;
     });
-  }
+  }, []);
 
   return <ThemeCtx.Provider value={{ theme, toggle }}>{children}</ThemeCtx.Provider>;
 }
