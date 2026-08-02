@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Calendar, CheckCircle2, RefreshCw, Sparkles, Sun, Zap } from "lucide-react";
-import { Float, Stagger, StaggerItem } from "@/components/motion";
+import { Float, Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Btn, Glass, PageLoader, Pill, ProgressBar, Skeleton } from "@/components/ui";
 import { api, type Health, type Progress as GoalProgress } from "@/lib/api";
 
@@ -57,28 +57,27 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="bento">
-        <Skeleton className="bento-hero h-80" />
-        <Skeleton className="h-44" />
-        <Skeleton className="h-44" />
-        <Skeleton className="col-span-full h-52" />
+      <div className="bento-asymmetric">
+        <Skeleton className="bento-span-7 bento-row-2 h-80" />
+        <Skeleton className="bento-span-5 h-44" />
+        <Skeleton className="bento-span-5 h-44" />
+        <Skeleton className="bento-span-full h-52" />
       </div>
     );
   }
 
   return (
-    <Stagger className="bento">
-      {/* Hero bento */}
-      <StaggerItem className="bento-hero">
-        <Glass glow className="h-full p-6 md:p-8">
+    <Stagger className="bento-asymmetric">
+      <StaggerItem className="bento-span-7 bento-row-2">
+        <Glass glow tilt className="h-full p-6 md:p-8">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="icon-badge">
                 <Sun className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-heading">Command Center</h2>
-                <p className="text-sm text-muted">Your daily AI briefing & actions</p>
+                <h2 className="display-lg text-heading">Command Center</h2>
+                <p className="text-body text-muted">Your daily AI briefing & actions</p>
               </div>
             </div>
             <Pill tone={health?.ok ? "ok" : "warn"}>{health?.ok ? "Live" : "Offline"}</Pill>
@@ -126,10 +125,9 @@ export function Dashboard() {
         </Glass>
       </StaggerItem>
 
-      {/* Stats bento */}
-      <StaggerItem>
+      <StaggerItem className="bento-span-5">
         <Float>
-          <Glass className="flex h-full flex-col justify-between p-6">
+          <Glass tilt className="flex h-full flex-col justify-between p-6">
             <div className="icon-badge">
               <Zap className="h-5 w-5" />
             </div>
@@ -145,47 +143,50 @@ export function Dashboard() {
         </Float>
       </StaggerItem>
 
-      <StaggerItem>
-        <Glass className="flex h-full flex-col justify-between p-6">
-          <div className="icon-badge">
-            <CheckCircle2 className="h-5 w-5" />
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div>
-              <p className="text-2xl font-bold text-heading">{progress?.completed ?? 0}</p>
-              <p className="stat-label">Done</p>
+      <StaggerItem className="bento-span-5">
+        <Reveal>
+          <Glass tilt className="flex h-full flex-col justify-between p-6">
+            <div className="icon-badge">
+              <CheckCircle2 className="h-5 w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold text-heading">{progress?.pending ?? 0}</p>
-              <p className="stat-label">Pending</p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-2xl font-bold text-heading">{progress?.completed ?? 0}</p>
+                <p className="stat-label">Done</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-heading">{progress?.pending ?? 0}</p>
+                <p className="stat-label">Pending</p>
+              </div>
             </div>
-          </div>
-          <p className="mt-3 text-xs text-muted">
-            LeetCode {progress?.leetcode.total ?? 0} · {health?.onboarded ? "Onboarded" : "Needs setup"}
-          </p>
-        </Glass>
+            <p className="mt-3 text-xs text-muted">
+              LeetCode {progress?.leetcode.total ?? 0} · {health?.onboarded ? "Onboarded" : "Needs setup"}
+            </p>
+          </Glass>
+        </Reveal>
       </StaggerItem>
 
-      {/* Tasks bento */}
-      <StaggerItem className="lg:col-span-3">
-        <Glass className="p-6 md:p-8">
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-heading">Pending tasks</h2>
-            <Pill>{tasks.length} active</Pill>
-          </div>
-          {tasks.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-2">No pending tasks — ingest a PDF or chat to get started</p>
-          ) : (
-            <ul className="space-y-2">
-              {tasks.map((task, i) => (
-                <li key={String(task.id)} className="task-row text-sm" style={{ animationDelay: `${i * 50}ms` }}>
-                  <span className="font-semibold text-heading">{String(task.title)}</span>
-                  {task.due_date ? <span className="ml-2 text-muted-2">· {String(task.due_date)}</span> : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Glass>
+      <StaggerItem className="bento-span-full">
+        <Reveal delay={0.1}>
+          <Glass className="p-6 md:p-8">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="display-lg text-heading">Pending tasks</h2>
+              <Pill>{tasks.length} active</Pill>
+            </div>
+            {tasks.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-2">No pending tasks — ingest a PDF or chat to get started</p>
+            ) : (
+              <ul className="space-y-2">
+                {tasks.map((task, i) => (
+                  <li key={String(task.id)} className="task-row text-sm" style={{ animationDelay: `${i * 50}ms` }}>
+                    <span className="font-semibold text-heading">{String(task.title)}</span>
+                    {task.due_date ? <span className="ml-2 text-muted-2">· {String(task.due_date)}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Glass>
+        </Reveal>
       </StaggerItem>
     </Stagger>
   );

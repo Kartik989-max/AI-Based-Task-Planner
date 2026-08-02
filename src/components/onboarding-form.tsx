@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
-import { FadeIn } from "@/components/motion";
+import { Reveal } from "@/components/motion";
 import { Btn, Field, Glass, Input, Select } from "@/components/ui";
 import { api } from "@/lib/api";
 
@@ -62,15 +62,15 @@ export function OnboardingForm() {
   }
 
   return (
-    <FadeIn>
-      <Glass glow className="overflow-hidden p-6 md:p-10">
+    <Reveal>
+      <Glass glow tilt className="overflow-hidden p-6 md:p-10">
         <div className="mb-8 flex items-center gap-4">
           <div className="icon-badge">
             <Sparkles className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-heading">Personalize your planner</h2>
-            <p className="text-sm text-muted">Tell the AI how you work — it remembers everything</p>
+            <h2 className="display-lg text-heading">Personalize your planner</h2>
+            <p className="text-body text-muted">Tell the AI how you work — it remembers everything</p>
           </div>
         </div>
 
@@ -139,6 +139,6 @@ export function OnboardingForm() {
           </div>
         </form>
       </Glass>
-    </FadeIn>
+    </Reveal>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Code2, Target, Trophy } from "lucide-react";
-import { Float, Stagger, StaggerItem } from "@/components/motion";
+import { Float, Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Glass, Pill, ProgressBar, Skeleton } from "@/components/ui";
 import { api, type Progress as GoalProgress } from "@/lib/api";
 
@@ -21,26 +21,26 @@ export function ProgressView() {
 
   if (loading) {
     return (
-      <div className="bento">
-        <Skeleton className="bento-hero h-72" />
-        <Skeleton className="h-72" />
+      <div className="bento-asymmetric">
+        <Skeleton className="bento-span-8 bento-row-2 h-72" />
+        <Skeleton className="bento-span-4 h-72" />
       </div>
     );
   }
 
   return (
-    <Stagger className="bento">
-      <StaggerItem className="bento-hero">
+    <Stagger className="bento-asymmetric">
+      <StaggerItem className="bento-span-8 bento-row-2">
         <Float>
-          <Glass glow className="flex h-full flex-col justify-between p-8 md:p-10">
+          <Glass glow tilt className="flex h-full flex-col justify-between p-8 md:p-10">
             <div className="flex items-center gap-3">
               <div className="icon-badge">
                 <Target className="h-5 w-5" />
               </div>
-              <h2 className="text-xl font-bold text-heading">Mission progress</h2>
+              <h2 className="display-lg text-heading">Mission progress</h2>
             </div>
 
-            <p className="mt-6 text-lg text-muted">{progress?.main_goal || "Complete Setup to set your mission"}</p>
+            <p className="mt-6 text-body text-muted">{progress?.main_goal || "Complete Setup to set your mission"}</p>
 
             <div className="mt-8 grid grid-cols-3 gap-6">
               <div>
@@ -64,35 +64,37 @@ export function ProgressView() {
         </Float>
       </StaggerItem>
 
-      <StaggerItem>
-        <Glass className="flex h-full flex-col p-8">
-          <div className="flex items-center gap-3">
-            <div className="icon-badge">
-              <Code2 className="h-5 w-5" />
+      <StaggerItem className="bento-span-4">
+        <Reveal>
+          <Glass tilt className="flex h-full flex-col p-8">
+            <div className="flex items-center gap-3">
+              <div className="icon-badge">
+                <Code2 className="h-5 w-5" />
+              </div>
+              <h2 className="display-lg text-heading">LeetCode</h2>
             </div>
-            <h2 className="text-xl font-bold text-heading">LeetCode</h2>
-          </div>
 
-          <div className="mt-auto pt-8">
-            <div className="flex items-end gap-2">
-              <Trophy className="mb-2 h-6 w-6 text-accent" />
-              <p className="stat-num">{progress?.leetcode.total ?? 0}</p>
-            </div>
-            <p className="stat-label mt-2">Problems solved</p>
+            <div className="mt-auto pt-8">
+              <div className="flex items-end gap-2">
+                <Trophy className="mb-2 h-6 w-6 text-accent" />
+                <p className="stat-num">{progress?.leetcode.total ?? 0}</p>
+              </div>
+              <p className="stat-label mt-2">Problems solved</p>
 
-            <div className="mt-6 flex flex-wrap gap-2">
-              {Object.keys(byDiff).length === 0 ? (
-                <Pill>Start logging in Config</Pill>
-              ) : (
-                Object.entries(byDiff).map(([diff, count]) => (
-                  <Pill key={diff}>
-                    {diff}: {count}
-                  </Pill>
-                ))
-              )}
+              <div className="mt-6 flex flex-wrap gap-2">
+                {Object.keys(byDiff).length === 0 ? (
+                  <Pill>Start logging in Config</Pill>
+                ) : (
+                  Object.entries(byDiff).map(([diff, count]) => (
+                    <Pill key={diff}>
+                      {diff}: {count}
+                    </Pill>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-        </Glass>
+          </Glass>
+        </Reveal>
       </StaggerItem>
     </Stagger>
   );

@@ -1,23 +1,54 @@
+"use client";
+
 import { Loader2 } from "lucide-react";
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import { useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
+import { TiltCard } from "@/components/tilt-card";
+import { useMotionEffects } from "@/lib/motion-prefs";
 
 export function Glass({
   children,
   className = "",
   glow = false,
+  tilt = false,
 }: {
   children: ReactNode;
   className?: string;
   glow?: boolean;
+  tilt?: boolean;
 }) {
-  return <div className={`glass ${glow ? "glass-glow" : ""} ${className}`.trim()}>{children}</div>;
+  const card = <div className={`glass ${glow ? "glass-glow" : ""} ${className}`.trim()}>{children}</div>;
+  return tilt ? <TiltCard>{card}</TiltCard> : card;
 }
 
-type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean };
+type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean; magnetic?: boolean };
 
-export function Btn({ className = "", children, loading, disabled, ...props }: BtnProps) {
+export function Btn({ className = "", children, loading, disabled, magnetic = true, ...props }: BtnProps) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const { reduced, fine } = useMotionEffects();
+  const magneticEnabled = magnetic && fine && !reduced;
+
+  function onMove(e: React.MouseEvent<HTMLButtonElement>) {
+    if (!magneticEnabled || !ref.current || disabled || loading) return;
+    const rect = ref.current.getBoundingClientRect();
+    const dx = (e.clientX - rect.left - rect.width / 2) * 0.18;
+    const dy = (e.clientY - rect.top - rect.height / 2) * 0.18;
+    ref.current.style.transform = `translate(${dx}px, ${dy}px)`;
+  }
+
+  function onLeave() {
+    if (ref.current) ref.current.style.transform = "";
+  }
+
   return (
-    <button className={`glass-btn ${className}`.trim()} disabled={disabled || loading} {...props}>
+    <button
+      ref={ref}
+      className={`glass-btn ${className}`.trim()}
+      disabled={disabled || loading}
+      data-cursor-hover=""
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      {...props}
+    >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
       {children}
     </button>
@@ -26,7 +57,7 @@ export function Btn({ className = "", children, loading, disabled, ...props }: B
 
 export function BtnGhost({ className = "", children, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button className={`glass-btn-ghost ${className}`.trim()} {...props}>
+    <button className={`glass-btn-ghost ${className}`.trim()} data-cursor-hover="" {...props}>
       {children}
     </button>
   );
