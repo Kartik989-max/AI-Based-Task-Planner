@@ -266,7 +266,7 @@ def weekly_review():
         raise HTTPException(500, str(exc)) from exc
 
 
-@app.get("/progress")
+@app.get("/stats/progress")
 def progress():
     return db.goal_progress()
 

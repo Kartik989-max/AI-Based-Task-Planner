@@ -14,7 +14,7 @@ const apiPaths = [
   "review",
   "reminders",
   "auth",
-  "progress",
+  "stats",
   "leetcode",
   "calendar",
   "brief",

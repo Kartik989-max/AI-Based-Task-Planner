@@ -1,7 +1,9 @@
 "use client";
 
-import { GlassCard, GlassCardContent, GlassCardHeader, Progress, Button } from "@glinui/ui";
 import { useEffect, useState } from "react";
+import { Calendar, RefreshCw, Sparkles, Sun } from "lucide-react";
+import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
+import { Btn, Glass, Pill, ProgressBar } from "@/components/ui";
 import { api, type Health, type Progress as GoalProgress } from "@/lib/api";
 
 export function Dashboard() {
@@ -52,87 +54,103 @@ export function Dashboard() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <GlassCard className="lg:col-span-2">
-        <GlassCardHeader>
-          <h2 className="text-xl font-medium text-white">Today</h2>
-          <p className="text-sm text-white/60">Morning brief, calendar slots, and quick actions</p>
-        </GlassCardHeader>
-        <GlassCardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <Button disabled={!!busy} onClick={() => run("brief")}>
-              {busy === "brief" ? "Generating…" : "Morning brief"}
-            </Button>
-            <Button disabled={!!busy} onClick={() => run("plan")}>
-              {busy === "plan" ? "Planning…" : "Daily plan"}
-            </Button>
-            <Button disabled={!!busy} onClick={() => run("sync")}>
-              {busy === "sync" ? "Syncing…" : "Sync Todoist"}
-            </Button>
-            <Button disabled={!!busy} onClick={() => run("weekly")}>
-              {busy === "weekly" ? "Reviewing…" : "Weekly review"}
-            </Button>
+    <Stagger className="grid gap-6 lg:grid-cols-3">
+      <StaggerItem className="lg:col-span-2">
+        <Glass glow className="p-6 md:p-8">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Today</h2>
+              <p className="mt-1 text-sm text-white/55">Morning brief, calendar slots, quick actions</p>
+            </div>
+            <Pill tone={health?.ok ? "ok" : "warn"}>{health?.ok ? "API online" : "API offline"}</Pill>
           </div>
-          {error ? <p className="text-sm text-red-300">{error}</p> : null}
-          {brief ? (
-            <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-xl bg-black/20 p-4 text-sm text-white/80">
-              {brief}
-            </pre>
-          ) : (
-            <p className="text-sm text-white/50">Run morning brief or daily plan to see output here.</p>
-          )}
+
+          <div className="flex flex-wrap gap-3">
+            <Btn disabled={!!busy} onClick={() => run("brief")}>
+              <Sun className="h-4 w-4" />
+              {busy === "brief" ? "Generating…" : "Morning brief"}
+            </Btn>
+            <Btn disabled={!!busy} onClick={() => run("plan")}>
+              <Calendar className="h-4 w-4" />
+              {busy === "plan" ? "Planning…" : "Daily plan"}
+            </Btn>
+            <Btn disabled={!!busy} onClick={() => run("sync")}>
+              <RefreshCw className={`h-4 w-4 ${busy === "sync" ? "animate-spin" : ""}`} />
+              {busy === "sync" ? "Syncing…" : "Sync Todoist"}
+            </Btn>
+            <Btn disabled={!!busy} onClick={() => run("weekly")}>
+              <Sparkles className="h-4 w-4" />
+              {busy === "weekly" ? "Reviewing…" : "Weekly review"}
+            </Btn>
+          </div>
+
+          {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
+
+          <div className="mt-5 rounded-xl border border-white/8 bg-black/25 p-4">
+            {brief ? (
+              <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-white/80">{brief}</pre>
+            ) : (
+              <p className="text-sm text-white/45">Run morning brief or daily plan to see output here.</p>
+            )}
+          </div>
+
           {slots.length > 0 ? (
-            <p className="text-sm text-cyan-200/80">Free slots: {slots.join(" · ")}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {slots.map((s) => (
+                <span key={s} className="slot-chip">
+                  {s}
+                </span>
+              ))}
+            </div>
           ) : null}
-        </GlassCardContent>
-      </GlassCard>
+        </Glass>
+      </StaggerItem>
 
       <div className="space-y-6">
-        <GlassCard>
-          <GlassCardHeader>
-            <h2 className="text-lg font-medium text-white">Goal progress</h2>
-          </GlassCardHeader>
-          <GlassCardContent className="space-y-3">
-            <p className="text-sm text-white/70">{progress?.main_goal || "Set your goal in onboarding"}</p>
-            <Progress value={progress?.progress_pct || 0} />
-            <p className="text-sm text-white/60">
+        <StaggerItem>
+          <Glass className="p-6">
+            <h2 className="text-lg font-semibold text-white">Goal progress</h2>
+            <p className="mt-2 text-sm text-white/65">{progress?.main_goal || "Set your goal in onboarding"}</p>
+            <div className="mt-4">
+              <div className="mb-2 flex justify-between text-xs text-white/50">
+                <span>Completion</span>
+                <span>{progress?.progress_pct ?? 0}%</span>
+              </div>
+              <ProgressBar value={progress?.progress_pct || 0} />
+            </div>
+            <p className="mt-3 text-sm text-white/55">
               {progress?.completed ?? 0}/{progress?.total_tasks ?? 0} tasks · LeetCode {progress?.leetcode.total ?? 0}
             </p>
-          </GlassCardContent>
-        </GlassCard>
+          </Glass>
+        </StaggerItem>
 
-        <GlassCard>
-          <GlassCardHeader>
-            <h2 className="text-lg font-medium text-white">System</h2>
-          </GlassCardHeader>
-          <GlassCardContent className="space-y-2 text-sm text-white/70">
-            <p>API: {health?.ok ? "online" : "offline"}</p>
+        <StaggerItem>
+          <Glass className="space-y-2 p-6 text-sm text-white/70">
+            <h2 className="text-lg font-semibold text-white">System</h2>
             <p>Onboarded: {health?.onboarded ? "yes" : "no"}</p>
             <p>Google Calendar: {health?.google_calendar ? "connected" : "not connected"}</p>
             <p>Todoist: {health?.todoist_configured ? "configured" : "missing token"}</p>
-          </GlassCardContent>
-        </GlassCard>
+          </Glass>
+        </StaggerItem>
       </div>
 
-      <GlassCard className="lg:col-span-3">
-        <GlassCardHeader>
-          <h2 className="text-lg font-medium text-white">Pending tasks</h2>
-        </GlassCardHeader>
-        <GlassCardContent>
+      <StaggerItem className="lg:col-span-3">
+        <Glass className="p-6">
+          <h2 className="text-lg font-semibold text-white">Pending tasks</h2>
           {tasks.length === 0 ? (
-            <p className="text-sm text-white/50">No pending tasks. Upload a PDF or chat ingest from API.</p>
+            <p className="mt-3 text-sm text-white/45">No pending tasks yet.</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="mt-4 space-y-2">
               {tasks.map((task) => (
-                <li key={String(task.id)} className="rounded-xl bg-white/5 px-4 py-3 text-sm text-white/80">
+                <li key={String(task.id)} className="task-row text-sm">
                   <span className="font-medium text-white">{String(task.title)}</span>
-                  {task.due_date ? <span className="ml-2 text-white/50">due {String(task.due_date)}</span> : null}
+                  {task.due_date ? <span className="ml-2 text-white/45">due {String(task.due_date)}</span> : null}
                 </li>
               ))}
             </ul>
           )}
-        </GlassCardContent>
-      </GlassCard>
-    </div>
+        </Glass>
+      </StaggerItem>
+    </Stagger>
   );
 }

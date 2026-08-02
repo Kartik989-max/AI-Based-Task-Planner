@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GlassCard } from "@glinui/ui";
 import { LayoutDashboard, Settings, Sparkles, Target } from "lucide-react";
+import { FadeIn } from "@/components/motion";
+import { BtnGhost } from "@/components/ui";
 
 const links = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -16,30 +17,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-8 md:px-8">
-      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-white/50">Guide Todoo</p>
-          <h1 className="text-3xl font-semibold text-white">Liquid glass planner</h1>
-        </div>
-        <nav className="flex flex-wrap gap-2">
-          {links.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
-            return (
-              <Link key={href} href={href}>
-                <GlassCard
-                  size="sm"
-                  className={`flex items-center gap-2 px-4 py-2 text-sm ${active ? "ring-1 ring-white/30" : "opacity-80"}`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {label}
-                </GlassCard>
-              </Link>
-            );
-          })}
-        </nav>
-      </header>
-      <main className="flex-1">{children}</main>
+    <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-4 py-8 md:px-8">
+      <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-indigo-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute -right-10 top-32 h-48 w-48 rounded-full bg-cyan-400/15 blur-3xl" />
+
+      <FadeIn>
+        <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-indigo-200/60">Guide Todoo</p>
+            <h1 className="mt-1 bg-gradient-to-r from-white via-indigo-100 to-cyan-200 bg-clip-text text-3xl font-bold text-transparent md:text-4xl">
+              Liquid glass planner
+            </h1>
+          </div>
+          <nav className="flex flex-wrap gap-2">
+            {links.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href;
+              return (
+                <Link key={href} href={href}>
+                  <BtnGhost className={active ? "active" : ""}>
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </BtnGhost>
+                </Link>
+              );
+            })}
+          </nav>
+        </header>
+      </FadeIn>
+
+      <main className="relative flex-1">{children}</main>
     </div>
   );
 }

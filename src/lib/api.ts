@@ -55,7 +55,7 @@ export const api = {
   profile: () => request<ProfileResponse>("/profile"),
   patchProfile: (body: Record<string, unknown>) =>
     request("/profile", { method: "PATCH", body: JSON.stringify(body) }),
-  progress: () => request<Progress>("/progress"),
+  progress: () => request<Progress>("/stats/progress"),
   tasks: (status?: string) =>
     request<{ tasks: Record<string, unknown>[] }>(`/tasks${status ? `?status=${status}` : ""}`),
   dailyPlan: () => request<BriefResponse>("/plan/daily", { method: "POST" }),

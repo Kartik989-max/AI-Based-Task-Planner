@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, GlassCard, GlassCardContent, GlassCardHeader, Input, Label, Select } from "@glinui/ui";
+import { FadeIn } from "@/components/motion";
+import { Btn, Field, Glass, Input, Select } from "@/components/ui";
 import { api } from "@/lib/api";
 
 const defaultForm = {
@@ -29,8 +30,11 @@ export function OnboardingForm() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.profile()
-      .then((res) => setForm({ ...defaultForm, ...(res.profile as typeof defaultForm) }))
+    api.onboardStatus()
+      .then((s) => {
+        if (!s.onboarded) return;
+        return api.profile().then((res) => setForm({ ...defaultForm, ...(res.profile as typeof defaultForm) }));
+      })
       .catch(() => undefined);
   }, []);
 
@@ -39,14 +43,13 @@ export function OnboardingForm() {
     setStatus("Saving…");
     setError(null);
     try {
-      const payload = {
+      await api.onboard({
         ...form,
         focus_day: form.focus_day || null,
         max_tasks_per_day: Number(form.max_tasks_per_day),
         morning_plan_hour: Number(form.morning_plan_hour),
         side_goal_hours_per_day: Number(form.side_goal_hours_per_day),
-      };
-      await api.onboard(payload);
+      });
       setStatus("Profile saved. LLM planning will use your preferences.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
@@ -55,103 +58,74 @@ export function OnboardingForm() {
   }
 
   return (
-    <GlassCard>
-      <GlassCardHeader>
-        <h2 className="text-xl font-medium text-white">Onboarding</h2>
-        <p className="text-sm text-white/60">Work hours, goals, quiet hours, and focus days</p>
-      </GlassCardHeader>
-      <GlassCardContent>
-        <form className="grid gap-4 md:grid-cols-2" onSubmit={submit}>
-          <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <Select
-              id="role"
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-              options={[
-                { label: "Student", value: "student" },
-                { label: "Professional", value: "professional" },
-                { label: "Both", value: "both" },
-              ]}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="main_goal">Main goal</Label>
+    <FadeIn>
+      <Glass glow className="p-6 md:p-8">
+        <h2 className="text-xl font-semibold text-white">Onboarding</h2>
+        <p className="mt-1 text-sm text-white/55">Work hours, goals, quiet hours, and focus days</p>
+
+        <form className="mt-6 grid gap-5 md:grid-cols-2" onSubmit={submit}>
+          <Field label="Role">
+            <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+              <option value="student">Student</option>
+              <option value="professional">Professional</option>
+              <option value="both">Both</option>
+            </Select>
+          </Field>
+          <Field label="Main goal">
             <Input
-              id="main_goal"
               value={form.main_goal}
               onChange={(e) => setForm({ ...form, main_goal: e.target.value })}
               placeholder="Crack FAANG interviews by Dec 2026"
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="work_start">Work start</Label>
-            <Input id="work_start" value={form.work_start} onChange={(e) => setForm({ ...form, work_start: e.target.value })} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="work_end">Work end</Label>
-            <Input id="work_end" value={form.work_end} onChange={(e) => setForm({ ...form, work_end: e.target.value })} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="deep_work_start">Deep work start</Label>
+          </Field>
+          <Field label="Work start">
+            <Input value={form.work_start} onChange={(e) => setForm({ ...form, work_start: e.target.value })} />
+          </Field>
+          <Field label="Work end">
+            <Input value={form.work_end} onChange={(e) => setForm({ ...form, work_end: e.target.value })} />
+          </Field>
+          <Field label="Deep work start">
+            <Input value={form.deep_work_start} onChange={(e) => setForm({ ...form, deep_work_start: e.target.value })} />
+          </Field>
+          <Field label="Deep work end">
+            <Input value={form.deep_work_end} onChange={(e) => setForm({ ...form, deep_work_end: e.target.value })} />
+          </Field>
+          <Field label="Max tasks / day">
             <Input
-              id="deep_work_start"
-              value={form.deep_work_start}
-              onChange={(e) => setForm({ ...form, deep_work_start: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="deep_work_end">Deep work end</Label>
-            <Input
-              id="deep_work_end"
-              value={form.deep_work_end}
-              onChange={(e) => setForm({ ...form, deep_work_end: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="max_tasks">Max tasks / day</Label>
-            <Input
-              id="max_tasks"
               type="number"
               min={1}
               max={10}
               value={form.max_tasks_per_day}
               onChange={(e) => setForm({ ...form, max_tasks_per_day: Number(e.target.value) })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="focus_day">Focus / quiet day (YYYY-MM-DD)</Label>
+          </Field>
+          <Field label="Focus day (YYYY-MM-DD)">
             <Input
-              id="focus_day"
               value={form.focus_day}
               onChange={(e) => setForm({ ...form, focus_day: e.target.value })}
               placeholder="2026-08-15"
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="notification_style">Notification style</Label>
+          </Field>
+          <Field label="Notification style">
             <Select
-              id="notification_style"
               value={form.notification_style}
               onChange={(e) => setForm({ ...form, notification_style: e.target.value })}
-              options={[
-                { label: "Gentle", value: "gentle" },
-                { label: "Normal", value: "normal" },
-                { label: "Focused", value: "focused" },
-              ]}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="timezone">Timezone</Label>
-            <Input id="timezone" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
-          </div>
+            >
+              <option value="gentle">Gentle</option>
+              <option value="normal">Normal</option>
+              <option value="focused">Focused</option>
+            </Select>
+          </Field>
+          <Field label="Timezone">
+            <Input value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
+          </Field>
           <div className="md:col-span-2">
-            <Button type="submit">Save profile</Button>
+            <Btn type="submit">Save profile</Btn>
             {status ? <p className="mt-3 text-sm text-emerald-300">{status}</p> : null}
             {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
           </div>
         </form>
-      </GlassCardContent>
-    </GlassCard>
+      </Glass>
+    </FadeIn>
   );
 }

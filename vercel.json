@@ -7,8 +7,10 @@
   "routes": [
     { "src": "/api/cron/(.*)", "dest": "/api/index.py" },
     { "src": "/webhooks/(.*)", "dest": "/api/index.py" },
+    { "src": "/onboard/status", "dest": "/api/index.py" },
+    { "src": "/onboard", "dest": "/api/index.py" },
     {
-      "src": "/(health|onboard|profile|ingest|jira|sync|plan|tasks|review|reminders|auth|progress|leetcode|calendar|brief|bridge|docs|openapi.json)(.*)",
+      "src": "/(health|profile|ingest|jira|sync|plan|tasks|review|reminders|auth|stats|leetcode|calendar|brief|bridge|docs|openapi.json)(/.*)?",
       "dest": "/api/index.py"
     },
     { "handle": "filesystem" },

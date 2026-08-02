@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GlassCard, GlassCardContent, GlassCardHeader, Progress } from "@glinui/ui";
+import { Code2, Target } from "lucide-react";
+import { FadeIn, Stagger, StaggerItem } from "@/components/motion";
+import { Btn, Field, Glass, Input, Pill, ProgressBar } from "@/components/ui";
 import { api, type Progress as GoalProgress } from "@/lib/api";
 
 export function ProgressView() {
@@ -14,33 +16,57 @@ export function ProgressView() {
   const byDiff = progress?.leetcode.by_difficulty || {};
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <GlassCard>
-        <GlassCardHeader>
-          <h2 className="text-lg font-medium text-white">Main goal</h2>
-        </GlassCardHeader>
-        <GlassCardContent className="space-y-4">
-          <p className="text-white/80">{progress?.main_goal || "No goal set"}</p>
-          <Progress value={progress?.progress_pct || 0} />
-          <p className="text-sm text-white/60">
-            {progress?.completed ?? 0} done · {progress?.pending ?? 0} pending
-          </p>
-        </GlassCardContent>
-      </GlassCard>
+    <Stagger className="grid gap-6 md:grid-cols-2">
+      <StaggerItem>
+        <Glass glow className="p-6 md:p-8">
+          <div className="flex items-center gap-2 text-indigo-200/80">
+            <Target className="h-5 w-5" />
+            <h2 className="text-lg font-semibold text-white">Main goal</h2>
+          </div>
+          <p className="mt-4 text-base text-white/80">{progress?.main_goal || "No goal set — complete onboarding"}</p>
+          <div className="mt-6 grid grid-cols-3 gap-4">
+            <div>
+              <p className="stat-num">{progress?.progress_pct ?? 0}%</p>
+              <p className="mt-1 text-xs text-white/45">Progress</p>
+            </div>
+            <div>
+              <p className="stat-num">{progress?.completed ?? 0}</p>
+              <p className="mt-1 text-xs text-white/45">Done</p>
+            </div>
+            <div>
+              <p className="stat-num">{progress?.pending ?? 0}</p>
+              <p className="mt-1 text-xs text-white/45">Pending</p>
+            </div>
+          </div>
+          <div className="mt-6">
+            <ProgressBar value={progress?.progress_pct || 0} />
+          </div>
+        </Glass>
+      </StaggerItem>
 
-      <GlassCard>
-        <GlassCardHeader>
-          <h2 className="text-lg font-medium text-white">LeetCode</h2>
-        </GlassCardHeader>
-        <GlassCardContent className="space-y-2 text-sm text-white/80">
-          <p>Total solves: {progress?.leetcode.total ?? 0}</p>
-          {Object.entries(byDiff).map(([diff, count]) => (
-            <p key={diff}>
-              {diff}: {count}
-            </p>
-          ))}
-        </GlassCardContent>
-      </GlassCard>
-    </div>
+      <StaggerItem>
+        <Glass className="p-6 md:p-8">
+          <div className="flex items-center gap-2 text-cyan-200/80">
+            <Code2 className="h-5 w-5" />
+            <h2 className="text-lg font-semibold text-white">LeetCode</h2>
+          </div>
+          <p className="mt-4">
+            <span className="stat-num">{progress?.leetcode.total ?? 0}</span>
+            <span className="ml-2 text-sm text-white/50">total solves</span>
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {Object.keys(byDiff).length === 0 ? (
+              <Pill>No solves logged yet</Pill>
+            ) : (
+              Object.entries(byDiff).map(([diff, count]) => (
+                <Pill key={diff}>
+                  {diff}: {count}
+                </Pill>
+              ))
+            )}
+          </div>
+        </Glass>
+      </StaggerItem>
+    </Stagger>
   );
 }
