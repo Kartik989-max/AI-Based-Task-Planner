@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Calendar, RefreshCw, Sparkles, Sun } from "lucide-react";
-import { Stagger, StaggerItem } from "@/components/motion";
+import { Calendar, CheckCircle2, RefreshCw, Sparkles, Sun, Zap } from "lucide-react";
+import { Float, Stagger, StaggerItem } from "@/components/motion";
 import { Btn, Glass, PageLoader, Pill, ProgressBar, Skeleton } from "@/components/ui";
 import { api, type Health, type Progress as GoalProgress } from "@/lib/api";
 
@@ -57,53 +57,60 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Skeleton className="h-72 lg:col-span-2" />
-        <Skeleton className="h-48" />
-        <Skeleton className="h-48 lg:col-span-3" />
+      <div className="bento">
+        <Skeleton className="bento-hero h-80" />
+        <Skeleton className="h-44" />
+        <Skeleton className="h-44" />
+        <Skeleton className="col-span-full h-52" />
       </div>
     );
   }
 
   return (
-    <Stagger className="grid gap-6 lg:grid-cols-3">
-      <StaggerItem className="lg:col-span-2">
-        <Glass glow className="p-6 md:p-8">
-          <div className="mb-5 flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold text-heading">Today</h2>
-              <p className="mt-1 text-sm text-muted">Morning brief, calendar slots, quick actions</p>
+    <Stagger className="bento">
+      {/* Hero bento */}
+      <StaggerItem className="bento-hero">
+        <Glass glow className="h-full p-6 md:p-8">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="icon-badge">
+                <Sun className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-heading">Command Center</h2>
+                <p className="text-sm text-muted">Your daily AI briefing & actions</p>
+              </div>
             </div>
-            <Pill tone={health?.ok ? "ok" : "warn"}>{health?.ok ? "API online" : "API offline"}</Pill>
+            <Pill tone={health?.ok ? "ok" : "warn"}>{health?.ok ? "Live" : "Offline"}</Pill>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="action-grid mt-6">
             <Btn loading={busy === "brief"} disabled={!!busy} onClick={() => run("brief")}>
               <Sun className="h-4 w-4" />
-              Morning brief
+              Brief
             </Btn>
             <Btn loading={busy === "plan"} disabled={!!busy} onClick={() => run("plan")}>
               <Calendar className="h-4 w-4" />
-              Daily plan
+              Plan
             </Btn>
             <Btn loading={busy === "sync"} disabled={!!busy} onClick={() => run("sync")}>
               <RefreshCw className="h-4 w-4" />
-              Sync Todoist
+              Sync
             </Btn>
             <Btn loading={busy === "weekly"} disabled={!!busy} onClick={() => run("weekly")}>
               <Sparkles className="h-4 w-4" />
-              Weekly review
+              Review
             </Btn>
           </div>
 
           {busy ? <PageLoader /> : null}
           {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
 
-          <div className="panel-inner mt-5 p-4">
+          <div className="panel-inner mt-5 p-5">
             {brief ? (
-              <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-muted">{brief}</pre>
+              <pre className="max-h-56 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-muted">{brief}</pre>
             ) : (
-              <p className="text-sm text-muted-2">Run morning brief or daily plan to see output here.</p>
+              <p className="text-center text-sm text-muted-2">Hit a button above to generate your plan</p>
             )}
           </div>
 
@@ -119,45 +126,61 @@ export function Dashboard() {
         </Glass>
       </StaggerItem>
 
-      <div className="space-y-6">
-        <StaggerItem>
-          <Glass className="p-6">
-            <h2 className="text-lg font-semibold text-heading">Goal progress</h2>
-            <p className="mt-2 text-sm text-muted">{progress?.main_goal || "Set your goal in onboarding"}</p>
+      {/* Stats bento */}
+      <StaggerItem>
+        <Float>
+          <Glass className="flex h-full flex-col justify-between p-6">
+            <div className="icon-badge">
+              <Zap className="h-5 w-5" />
+            </div>
             <div className="mt-4">
-              <div className="mb-2 flex justify-between text-xs text-muted-2">
-                <span>Completion</span>
-                <span>{progress?.progress_pct ?? 0}%</span>
-              </div>
+              <p className="stat-num">{progress?.progress_pct ?? 0}%</p>
+              <p className="stat-label mt-1">Goal progress</p>
+            </div>
+            <div className="mt-4">
               <ProgressBar value={progress?.progress_pct || 0} />
             </div>
-            <p className="mt-3 text-sm text-muted">
-              {progress?.completed ?? 0}/{progress?.total_tasks ?? 0} tasks · LeetCode {progress?.leetcode.total ?? 0}
-            </p>
+            <p className="mt-3 truncate text-xs text-muted">{progress?.main_goal || "Set a goal in Setup"}</p>
           </Glass>
-        </StaggerItem>
+        </Float>
+      </StaggerItem>
 
-        <StaggerItem>
-          <Glass className="space-y-2 p-6 text-sm text-muted">
-            <h2 className="text-lg font-semibold text-heading">System</h2>
-            <p>Onboarded: {health?.onboarded ? "yes" : "no"}</p>
-            <p>Google Calendar: {health?.google_calendar ? "connected" : "not connected"}</p>
-            <p>Todoist: {health?.todoist_configured ? "configured" : "missing token"}</p>
-          </Glass>
-        </StaggerItem>
-      </div>
+      <StaggerItem>
+        <Glass className="flex h-full flex-col justify-between p-6">
+          <div className="icon-badge">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-2xl font-bold text-heading">{progress?.completed ?? 0}</p>
+              <p className="stat-label">Done</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-heading">{progress?.pending ?? 0}</p>
+              <p className="stat-label">Pending</p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted">
+            LeetCode {progress?.leetcode.total ?? 0} · {health?.onboarded ? "Onboarded" : "Needs setup"}
+          </p>
+        </Glass>
+      </StaggerItem>
 
+      {/* Tasks bento */}
       <StaggerItem className="lg:col-span-3">
-        <Glass className="p-6">
-          <h2 className="text-lg font-semibold text-heading">Pending tasks</h2>
+        <Glass className="p-6 md:p-8">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-heading">Pending tasks</h2>
+            <Pill>{tasks.length} active</Pill>
+          </div>
           {tasks.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-2">No pending tasks yet.</p>
+            <p className="py-8 text-center text-sm text-muted-2">No pending tasks — ingest a PDF or chat to get started</p>
           ) : (
-            <ul className="mt-4 space-y-2">
-              {tasks.map((task) => (
-                <li key={String(task.id)} className="task-row text-sm">
-                  <span className="font-medium text-heading">{String(task.title)}</span>
-                  {task.due_date ? <span className="ml-2 text-muted-2">due {String(task.due_date)}</span> : null}
+            <ul className="space-y-2">
+              {tasks.map((task, i) => (
+                <li key={String(task.id)} className="task-row text-sm" style={{ animationDelay: `${i * 50}ms` }}>
+                  <span className="font-semibold text-heading">{String(task.title)}</span>
+                  {task.due_date ? <span className="ml-2 text-muted-2">· {String(task.due_date)}</span> : null}
                 </li>
               ))}
             </ul>

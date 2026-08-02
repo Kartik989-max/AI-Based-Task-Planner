@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { FadeIn } from "@/components/motion";
 import { Btn, Field, Glass, Input, Select } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -52,7 +53,7 @@ export function OnboardingForm() {
         morning_plan_hour: Number(form.morning_plan_hour),
         side_goal_hours_per_day: Number(form.side_goal_hours_per_day),
       });
-      setStatus("Profile saved. LLM planning will use your preferences.");
+      setStatus("Profile saved — your AI planner is now personalized.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -62,11 +63,18 @@ export function OnboardingForm() {
 
   return (
     <FadeIn>
-      <Glass glow className="p-6 md:p-8">
-        <h2 className="text-xl font-semibold text-heading">Onboarding</h2>
-        <p className="mt-1 text-sm text-muted">Work hours, goals, quiet hours, and focus days</p>
+      <Glass glow className="overflow-hidden p-6 md:p-10">
+        <div className="mb-8 flex items-center gap-4">
+          <div className="icon-badge">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-heading">Personalize your planner</h2>
+            <p className="text-sm text-muted">Tell the AI how you work — it remembers everything</p>
+          </div>
+        </div>
 
-        <form className="mt-6 grid gap-5 md:grid-cols-2" onSubmit={submit}>
+        <form className="grid gap-5 md:grid-cols-2" onSubmit={submit}>
           <Field label="Role">
             <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
               <option value="student">Student</option>
@@ -102,14 +110,14 @@ export function OnboardingForm() {
               onChange={(e) => setForm({ ...form, max_tasks_per_day: Number(e.target.value) })}
             />
           </Field>
-          <Field label="Focus day (YYYY-MM-DD)">
+          <Field label="Focus day">
             <Input
               value={form.focus_day}
               onChange={(e) => setForm({ ...form, focus_day: e.target.value })}
               placeholder="2026-08-15"
             />
           </Field>
-          <Field label="Notification style">
+          <Field label="Notifications">
             <Select
               value={form.notification_style}
               onChange={(e) => setForm({ ...form, notification_style: e.target.value })}
@@ -124,10 +132,10 @@ export function OnboardingForm() {
           </Field>
           <div className="md:col-span-2">
             <Btn type="submit" loading={saving}>
-              Save profile
+              Save & activate
             </Btn>
-            {status ? <p className="mt-3 text-sm text-emerald-500">{status}</p> : null}
-            {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
+            {status ? <p className="mt-4 text-sm text-emerald-400">{status}</p> : null}
+            {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
           </div>
         </form>
       </Glass>

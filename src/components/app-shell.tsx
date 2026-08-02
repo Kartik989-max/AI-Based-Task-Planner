@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Moon, Settings, Sparkles, Sun, Target } from "lucide-react";
+import { LayoutDashboard, Moon, Settings, Sparkles, Sun, Target, Zap } from "lucide-react";
+import { AmbientBackground } from "@/components/ambient";
 import { FadeIn } from "@/components/motion";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
 import { BtnGhost } from "@/components/ui";
 
 const links = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/onboarding", label: "Onboarding", icon: Sparkles },
-  { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/progress", label: "Progress", icon: Target },
+  { href: "/", label: "Home", icon: LayoutDashboard },
+  { href: "/onboarding", label: "Setup", icon: Sparkles },
+  { href: "/progress", label: "Goals", icon: Target },
+  { href: "/settings", label: "Config", icon: Settings },
 ];
 
 function ShellInner({ children }: { children: React.ReactNode }) {
@@ -19,37 +20,41 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
 
   return (
-    <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-4 py-8 md:px-8">
-      <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-indigo-500/20 blur-3xl" />
-      <div className="pointer-events-none absolute -right-10 top-32 h-48 w-48 rounded-full bg-cyan-400/15 blur-3xl" />
-
-      <FadeIn>
-        <header className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <h1 className="text-2xl font-bold text-heading md:text-3xl">Guide Todoo</h1>
-          <div className="flex flex-wrap items-center gap-2">
-            <BtnGhost onClick={toggle} aria-label="Toggle theme">
+    <>
+      <AmbientBackground />
+      <div className="shell">
+        <FadeIn>
+          <header className="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div className="space-y-2">
+              <p className="eyebrow flex items-center gap-2">
+                <Zap className="h-3.5 w-3.5" />
+                AI task intelligence
+              </p>
+              <h1 className="text-4xl font-extrabold tracking-tight text-gradient md:text-5xl">Guide Todoo</h1>
+              <p className="max-w-md text-sm text-muted">Plan smarter. Ship faster. Your autonomous productivity cockpit.</p>
+            </div>
+            <BtnGhost onClick={toggle} aria-label="Toggle theme" className="self-start md:self-auto">
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              {theme === "dark" ? "Light" : "Dark"}
+              {theme === "dark" ? "Light mode" : "Dark mode"}
             </BtnGhost>
-            <nav className="flex flex-wrap gap-2">
-              {links.map(({ href, label, icon: Icon }) => {
-                const active = pathname === href;
-                return (
-                  <Link key={href} href={href}>
-                    <BtnGhost className={active ? "active" : ""}>
-                      <Icon className="h-4 w-4" />
-                      {label}
-                    </BtnGhost>
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        </header>
-      </FadeIn>
+          </header>
+        </FadeIn>
 
-      <main className="relative flex-1">{children}</main>
-    </div>
+        <main>{children}</main>
+      </div>
+
+      <nav className="dock" aria-label="Main navigation">
+        {links.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href;
+          return (
+            <Link key={href} href={href} className={`dock-link ${active ? "active" : ""}`}>
+              <Icon />
+              <span>{label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </>
   );
 }
 

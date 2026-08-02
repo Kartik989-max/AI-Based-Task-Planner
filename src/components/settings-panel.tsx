@@ -40,7 +40,7 @@ export function SettingsPanel() {
     setLogging(true);
     try {
       const res = await api.logLeetcode(leetcode);
-      setMessage(`Logged. Total solves: ${res.stats.total}`);
+      setMessage(`Logged · ${res.stats.total} total solves`);
       setLeetcode({ ...leetcode, problem_slug: "", title: "" });
     } finally {
       setLogging(false);
@@ -49,38 +49,44 @@ export function SettingsPanel() {
 
   if (loading) {
     return (
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Skeleton className="h-64" />
-        <Skeleton className="h-64" />
+      <div className="bento">
+        <Skeleton className="h-80" />
+        <Skeleton className="h-80" />
       </div>
     );
   }
 
   return (
-    <Stagger className="grid gap-6 lg:grid-cols-2">
+    <Stagger className="bento md:grid-cols-2">
       <StaggerItem>
-        <Glass glow className="p-6 md:p-8">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-accent" />
-            <h2 className="text-lg font-semibold text-heading">Google Calendar</h2>
+        <Glass glow className="h-full p-6 md:p-8">
+          <div className="flex items-center gap-3">
+            <div className="icon-badge">
+              <Calendar className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-heading">Google Calendar</h2>
+              <p className="text-sm text-muted">Free-window scheduling</p>
+            </div>
           </div>
-          <p className="mt-1 text-sm text-muted">OAuth for free-window scheduling</p>
 
-          <div className="info-box mt-4">
-            <strong>For all customers (not just you):</strong> In Google Cloud Console → OAuth consent screen → click{" "}
-            <strong>Publish App</strong>. Calendar access needs Google verification (1–4 weeks). Until then, only test
-            users can connect.{" "}
+          <div className="info-box mt-5">
+            <strong>For all users:</strong> Publish your OAuth app in Google Cloud Console. Calendar scope requires
+            Google verification (~1–4 weeks).{" "}
             <a href="https://support.google.com/cloud/answer/10311615" target="_blank" rel="noreferrer">
-              Google verification guide
+              Verification guide →
             </a>
           </div>
 
-          <p className="mt-4 text-sm text-muted">Status: {connected ? "Connected" : "Not connected"}</p>
+          <p className="mt-5 text-sm text-muted">
+            Status: <span className="font-semibold text-heading">{connected ? "Connected" : "Not connected"}</span>
+          </p>
           <Btn className="mt-4" loading={connecting} onClick={connectGoogle}>
             Connect Google
           </Btn>
+
           {slots.length > 0 ? (
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-5 flex flex-wrap gap-2">
               {slots.map((slot) => (
                 <span key={`${slot.start}-${slot.end}`} className="slot-chip">
                   {slot.start} – {slot.end}
@@ -92,13 +98,18 @@ export function SettingsPanel() {
       </StaggerItem>
 
       <StaggerItem>
-        <Glass className="p-6 md:p-8">
-          <div className="flex items-center gap-2">
-            <Code2 className="h-5 w-5 text-accent" />
-            <h2 className="text-lg font-semibold text-heading">LeetCode log</h2>
+        <Glass className="h-full p-6 md:p-8">
+          <div className="flex items-center gap-3">
+            <div className="icon-badge">
+              <Code2 className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-heading">LeetCode tracker</h2>
+              <p className="text-sm text-muted">Log solves toward your goal</p>
+            </div>
           </div>
-          <p className="mt-1 text-sm text-muted">Track solves toward interview goals</p>
-          <form className="mt-5 space-y-4" onSubmit={logSolve}>
+
+          <form className="mt-6 space-y-4" onSubmit={logSolve}>
             <Field label="Slug">
               <Input
                 value={leetcode.problem_slug}
@@ -124,7 +135,7 @@ export function SettingsPanel() {
             <Btn type="submit" loading={logging}>
               Log solve
             </Btn>
-            {message ? <p className="text-sm text-emerald-500">{message}</p> : null}
+            {message ? <p className="text-sm text-emerald-400">{message}</p> : null}
           </form>
         </Glass>
       </StaggerItem>
