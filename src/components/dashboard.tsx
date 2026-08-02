@@ -64,7 +64,21 @@ export function Dashboard() {
         setBrief(String(res.plan || ""));
         setSlots(res.free_slots || []);
       } else if (action === "sync") {
-        await api.syncTodoist();
+        const res = (await api.syncTodoist()) as {
+          pull?: { synced?: number; completed?: unknown[]; skipped_reason?: string };
+        };
+        const pull = res.pull ?? {};
+        const marked = pull.completed?.length ?? 0;
+        const synced = pull.synced ?? 0;
+
+        if (pull.skipped_reason === "todoist_not_configured") {
+          setBrief("Todoist is not connected. Set TODOIST_API_TOKEN in your environment to sync completions.");
+        } else if (synced === 0) {
+          setBrief("No linked tasks to sync yet. Add tasks via PDF/chat — they must exist in Guide Todoo with a Todoist link.");
+        } else {
+          setBrief(`Sync complete — ${marked} of ${synced} linked task${synced === 1 ? "" : "s"} marked done.`);
+        }
+
         const t = await api.tasks("pending");
         setTasks(t.tasks.slice(0, 8));
       } else {

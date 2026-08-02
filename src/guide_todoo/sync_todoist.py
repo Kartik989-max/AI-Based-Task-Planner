@@ -15,28 +15,62 @@ from guide_todoo.scheduling import workload_summary
 logger = logging.getLogger(__name__)
 
 
+def _is_todoist_completed(remote: dict[str, Any]) -> bool:
+    """Todoist REST v1 uses checked/completed_at; older payloads use is_completed/completed."""
+    if remote.get("checked"):
+        return True
+    if remote.get("is_completed"):
+        return True
+    if remote.get("completed"):
+        return True
+    if remote.get("completed_at"):
+        return True
+    return False
+
+
+def _mark_completed(task: dict[str, Any], reason: str, completed: list[dict[str, Any]]) -> None:
+    db.update_task_status(task["id"], "done")
+    completed.append({"id": task["id"], "title": task["title"], "reason": reason})
+
+
 def sync_from_todoist() -> dict[str, Any]:
     """Mark DB tasks done when completed in Todoist."""
     if not settings.use_todoist:
-        return {"synced": 0, "completed": []}
+        return {"synced": 0, "completed": [], "skipped_reason": "todoist_not_configured"}
 
     client = get_client()
-    pending = [t for t in pending_tasks_with_todoist()]
+    pending = pending_tasks_with_todoist()
     completed: list[dict[str, Any]] = []
 
-    for task in pending:
-        todoist_id = task["reminder_id"]
-        try:
-            remote = client.get_task(todoist_id)
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 404:
-                db.update_task_status(task["id"], "done")
-                completed.append({"id": task["id"], "title": task["title"], "reason": "removed from Todoist"})
-            continue
+    active_by_id: dict[str, dict[str, Any]] | None = None
+    try:
+        active_by_id = {str(t["id"]): t for t in client.list_active_tasks()}
+    except Exception as exc:
+        logger.warning("list_active_tasks failed, falling back to per-task GET: %s", exc)
 
-        if remote.get("checked") or remote.get("is_completed"):
-            db.update_task_status(task["id"], "done")
-            completed.append({"id": task["id"], "title": task["title"], "reason": "completed in Todoist"})
+    for task in pending:
+        todoist_id = str(task["reminder_id"])
+        remote: dict[str, Any] | None = None
+
+        if active_by_id is not None:
+            remote = active_by_id.get(todoist_id)
+            if remote is None:
+                try:
+                    remote = client.get_task(todoist_id)
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code == 404:
+                        _mark_completed(task, "closed in Todoist", completed)
+                    continue
+        else:
+            try:
+                remote = client.get_task(todoist_id)
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    _mark_completed(task, "closed in Todoist", completed)
+                continue
+
+        if remote and _is_todoist_completed(remote):
+            _mark_completed(task, "completed in Todoist", completed)
 
     return {"synced": len(pending), "completed": completed}
 
@@ -102,6 +136,14 @@ def run_full_sync(today: date | None = None) -> dict[str, Any]:
 
 def pending_tasks_with_todoist() -> list[dict[str, Any]]:
     return [t for t in db.list_tasks(status="pending") if t.get("reminder_id")]
+
+
+if __name__ == "__main__":
+    assert _is_todoist_completed({"checked": True})
+    assert _is_todoist_completed({"completed_at": "2026-08-02T10:00:00Z"})
+    assert _is_todoist_completed({"completed": True})
+    assert not _is_todoist_completed({"checked": False, "completed_at": None})
+    print("sync_todoist self-check ok")
 
 
 def _parse_due(value: Any) -> date | None:
