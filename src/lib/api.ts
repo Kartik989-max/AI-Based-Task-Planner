@@ -68,4 +68,9 @@ export const api = {
   logLeetcode: (body: { problem_slug: string; title: string; difficulty?: string }) =>
     request<{ stats: Progress["leetcode"] }>("/leetcode/log", { method: "POST", body: JSON.stringify(body) }),
   syncTodoist: () => request("/sync/todoist", { method: "POST" }),
+  ingestChat: (message: string) =>
+    request<{ tasks_created: number; tasks: Record<string, unknown>[] }>("/ingest/chat", {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    }),
 };

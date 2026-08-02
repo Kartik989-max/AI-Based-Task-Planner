@@ -138,13 +138,15 @@ def insert_task(
     due_date: date | None = None,
     reminder_id: str | None = None,
     jira_key: str | None = None,
+    status: str = "pending",
 ) -> int:
+    completed_at = _now() if status == "done" else None
     with connect() as conn:
         row = conn.execute(
             """
             INSERT INTO tasks (title, description, source, source_ref, parent_id,
-                               priority, due_date, reminder_id, jira_key, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                               status, priority, due_date, reminder_id, jira_key, created_at, completed_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
@@ -153,11 +155,13 @@ def insert_task(
                 source,
                 source_ref,
                 parent_id,
+                status,
                 priority,
                 due_date,
                 reminder_id,
                 jira_key,
                 _now(),
+                completed_at,
             ),
         ).fetchone()
         assert row is not None

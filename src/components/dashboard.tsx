@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight, CalendarRange, Loader2, RefreshCw, Sparkles, SunMedium } from "lucide-react";
 import { EmptyIllustration } from "@/components/ambient";
 import { CountUp, Item, Stagger } from "@/components/motion";
-import { Bar, Card, CardHead, Eyebrow, InlineLoader, Pill, Ring, Skeleton } from "@/components/ui";
+import { Bar, Btn, Card, CardHead, Eyebrow, InlineLoader, Input, Pill, Ring, Skeleton } from "@/components/ui";
 import { api, type Health, type Progress as GoalProgress } from "@/lib/api";
 
 const actions = [
@@ -32,6 +32,8 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stamp, setStamp] = useState("");
+  const [chatMsg, setChatMsg] = useState("");
+  const [adding, setAdding] = useState(false);
 
   // Rendered client-side only — the server has no idea what time it is for you.
   useEffect(() => {
@@ -51,6 +53,29 @@ export function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
+  async function refreshTasks() {
+    const [p, t] = await Promise.all([api.progress(), api.tasks("pending")]);
+    setProgress(p);
+    setTasks(t.tasks.slice(0, 8));
+  }
+
+  async function addTasks(e: React.FormEvent) {
+    e.preventDefault();
+    if (!chatMsg.trim()) return;
+    setAdding(true);
+    setError(null);
+    try {
+      const res = await api.ingestChat(chatMsg.trim());
+      setChatMsg("");
+      setBrief(`Added ${res.tasks_created} task${res.tasks_created === 1 ? "" : "s"} from your message.`);
+      await refreshTasks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not add tasks");
+    } finally {
+      setAdding(false);
+    }
+  }
+
   async function run(action: (typeof actions)[number]["id"]) {
     setBusy(action);
     setError(null);
@@ -65,22 +90,36 @@ export function Dashboard() {
         setSlots(res.free_slots || []);
       } else if (action === "sync") {
         const res = (await api.syncTodoist()) as {
+          import?: { imported?: number; active?: number; completed?: number; skipped_reason?: string; error?: string };
           pull?: { synced?: number; completed?: unknown[]; skipped_reason?: string };
         };
+        const imported = res.import ?? {};
         const pull = res.pull ?? {};
         const marked = pull.completed?.length ?? 0;
         const synced = pull.synced ?? 0;
 
-        if (pull.skipped_reason === "todoist_not_configured") {
-          setBrief("Todoist is not connected. Set TODOIST_API_TOKEN in your environment to sync completions.");
-        } else if (synced === 0) {
-          setBrief("No linked tasks to sync yet. Add tasks via PDF/chat — they must exist in Guide Todoo with a Todoist link.");
+        if (imported.skipped_reason === "todoist_not_configured" || pull.skipped_reason === "todoist_not_configured") {
+          setBrief("Todoist is not connected. Set TODOIST_API_TOKEN in your environment to sync tasks.");
+        } else if (imported.error) {
+          setBrief(`Todoist import failed: ${imported.error}`);
         } else {
-          setBrief(`Sync complete — ${marked} of ${synced} linked task${synced === 1 ? "" : "s"} marked done.`);
+          const parts: string[] = [];
+          if ((imported.imported ?? 0) > 0) {
+            parts.push(
+              `imported ${imported.imported} (${imported.active ?? 0} open, ${imported.completed ?? 0} done)`,
+            );
+          }
+          if (synced > 0) {
+            parts.push(`marked ${marked} of ${synced} linked as complete`);
+          }
+          setBrief(
+            parts.length > 0
+              ? `Sync complete — ${parts.join("; ")}.`
+              : "Sync complete — no new Todoist tasks found. Add tasks below or in your Guide Todoo Todoist project.",
+          );
         }
 
-        const t = await api.tasks("pending");
-        setTasks(t.tasks.slice(0, 8));
+        await refreshTasks();
       } else {
         const res = await api.weeklyReview();
         setBrief(String(res.report || ""));
@@ -229,7 +268,7 @@ export function Dashboard() {
           {tasks.length === 0 ? (
             <div className="empty">
               <EmptyIllustration />
-              <p className="body max-w-[34ch]">Nothing queued. Ingest a PDF or send a message to fill this up.</p>
+              <p className="body max-w-[34ch]">Nothing queued yet. Sync from Todoist or describe tasks below.</p>
             </div>
           ) : (
             <ul>
@@ -243,6 +282,18 @@ export function Dashboard() {
               ))}
             </ul>
           )}
+
+          <form className="mt-8 flex flex-col gap-3 border-t border-[var(--line)] pt-6 sm:flex-row" onSubmit={addTasks}>
+            <Input
+              value={chatMsg}
+              onChange={(e) => setChatMsg(e.target.value)}
+              placeholder="e.g. Study graphs tomorrow, finish resume by Friday"
+              className="flex-1"
+            />
+            <Btn type="submit" loading={adding} disabled={!chatMsg.trim()}>
+              Add tasks
+            </Btn>
+          </form>
         </Card>
       </Item>
     </Stagger>

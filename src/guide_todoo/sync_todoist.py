@@ -1,4 +1,4 @@
-"""Bidirectional Todoist sync: completions in, rollover incomplete tasks out."""
+"""Bidirectional Todoist sync: import tasks in, completions in, rollover incomplete out."""
 
 import logging
 from datetime import date, datetime, time, timedelta
@@ -9,7 +9,7 @@ import httpx
 from guide_todoo import db
 from guide_todoo.config import settings
 from guide_todoo.integrations.tasks_backend import update_external_task
-from guide_todoo.integrations.todoist import get_client
+from guide_todoo.integrations.todoist import _from_todoist_priority, get_client
 from guide_todoo.scheduling import workload_summary
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,108 @@ def _is_todoist_completed(remote: dict[str, Any]) -> bool:
 def _mark_completed(task: dict[str, Any], reason: str, completed: list[dict[str, Any]]) -> None:
     db.update_task_status(task["id"], "done")
     completed.append({"id": task["id"], "title": task["title"], "reason": reason})
+
+
+def _parse_due(value: Any) -> date | None:
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
+
+
+def _parse_todoist_due(due: Any) -> date | None:
+    if not due:
+        return None
+    if isinstance(due, dict):
+        raw = due.get("date") or due.get("datetime")
+        return _parse_due(raw)
+    return _parse_due(due)
+
+
+def _todoist_title(remote: dict[str, Any]) -> str:
+    return str(remote.get("content") or remote.get("title") or "Untitled").strip()
+
+
+def _existing_reminder_ids() -> set[str]:
+    return {str(t["reminder_id"]) for t in db.list_tasks() if t.get("reminder_id")}
+
+
+def _import_remote_task(remote: dict[str, Any], *, as_done: bool) -> dict[str, Any] | None:
+    todoist_id = str(remote.get("id") or remote.get("task_id") or "")
+    if not todoist_id:
+        return None
+
+    existing = _existing_reminder_ids()
+    if todoist_id in existing:
+        return None
+
+    title = _todoist_title(remote)
+    task_id = db.insert_task(
+        title,
+        description=str(remote.get("description") or ""),
+        source="todoist",
+        source_ref=todoist_id,
+        priority=_from_todoist_priority(int(remote.get("priority") or 2)),
+        due_date=_parse_todoist_due(remote.get("due")),
+        reminder_id=todoist_id,
+        status="done" if as_done else "pending",
+    )
+    return {"id": task_id, "title": title, "todoist_id": todoist_id, "status": "done" if as_done else "pending"}
+
+
+def _unwrap_completed_entry(entry: dict[str, Any]) -> dict[str, Any]:
+    for key in ("item", "task", "content"):
+        nested = entry.get(key)
+        if isinstance(nested, dict) and (nested.get("id") or nested.get("content")):
+            return nested
+    return entry
+
+
+def import_from_todoist() -> dict[str, Any]:
+    """Pull active + recently completed Todoist tasks into the local DB."""
+    if not settings.use_todoist:
+        return {"imported": 0, "active": 0, "completed": 0, "tasks": [], "skipped_reason": "todoist_not_configured"}
+
+    client = get_client()
+    imported: list[dict[str, Any]] = []
+
+    try:
+        active = client.list_active_tasks()
+        if not active:
+            active = client.list_all_active_tasks()
+        for remote in active:
+            if _is_todoist_completed(remote):
+                row = _import_remote_task(remote, as_done=True)
+            else:
+                row = _import_remote_task(remote, as_done=False)
+            if row:
+                imported.append(row)
+    except Exception as exc:
+        logger.exception("import active Todoist tasks failed: %s", exc)
+        return {"imported": 0, "active": 0, "completed": 0, "tasks": [], "error": str(exc)}
+
+    active_count = sum(1 for t in imported if t["status"] == "pending")
+
+    today = date.today()
+    try:
+        for entry in client.list_completed_tasks(since=today - timedelta(days=30), until=today):
+            remote = _unwrap_completed_entry(entry)
+            row = _import_remote_task(remote, as_done=True)
+            if row:
+                imported.append(row)
+    except Exception as exc:
+        logger.warning("import completed Todoist tasks skipped: %s", exc)
+
+    done_count = sum(1 for t in imported if t["status"] == "done")
+
+    return {
+        "imported": len(imported),
+        "active": active_count,
+        "completed": done_count,
+        "tasks": imported,
+    }
 
 
 def sync_from_todoist() -> dict[str, Any]:
@@ -128,14 +230,21 @@ def rollover_incomplete_tasks(today: date | None = None) -> dict[str, Any]:
 
 
 def run_full_sync(today: date | None = None) -> dict[str, Any]:
-    """Pull Todoist completions, then rollover incomplete tasks."""
+    """Import from Todoist, pull completions, then rollover incomplete tasks."""
+    imported = import_from_todoist()
     pull = sync_from_todoist()
     roll = rollover_incomplete_tasks(today)
-    return {"pull": pull, "rollover": roll}
+    return {"import": imported, "pull": pull, "rollover": roll}
 
 
 def pending_tasks_with_todoist() -> list[dict[str, Any]]:
     return [t for t in db.list_tasks(status="pending") if t.get("reminder_id")]
+
+
+def eod_notify_at(day: date | None = None) -> datetime:
+    """When EOD summary should ping Todoist (uses EOD_SUMMARY_HOUR)."""
+    day = day or date.today()
+    return datetime.combine(day, time(settings.eod_summary_hour, 0))
 
 
 if __name__ == "__main__":
@@ -144,18 +253,3 @@ if __name__ == "__main__":
     assert _is_todoist_completed({"completed": True})
     assert not _is_todoist_completed({"checked": False, "completed_at": None})
     print("sync_todoist self-check ok")
-
-
-def _parse_due(value: Any) -> date | None:
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(str(value)[:10])
-    except ValueError:
-        return None
-
-
-def eod_notify_at(day: date | None = None) -> datetime:
-    """When EOD summary should ping Todoist (uses EOD_SUMMARY_HOUR)."""
-    day = day or date.today()
-    return datetime.combine(day, time(settings.eod_summary_hour, 0))

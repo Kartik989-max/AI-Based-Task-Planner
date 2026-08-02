@@ -49,6 +49,30 @@ class TodoistClient:
             return data.get("results", [])
         return data if isinstance(data, list) else []
 
+    def list_all_active_tasks(self) -> list[dict[str, Any]]:
+        data = self._request("GET", "/tasks")
+        if isinstance(data, dict):
+            return data.get("results", [])
+        return data if isinstance(data, list) else []
+
+    def list_completed_tasks(self, *, since: date, until: date) -> list[dict[str, Any]]:
+        project_id = self.ensure_project()
+        try:
+            data = self._request(
+                "GET",
+                "/tasks/completed/by_completion_date",
+                params={"project_id": project_id, "since": since.isoformat(), "until": until.isoformat()},
+            )
+        except httpx.HTTPStatusError:
+            data = self._request(
+                "GET",
+                "/tasks/completed/by_completion_date",
+                params={"since": since.isoformat(), "until": until.isoformat()},
+            )
+        if isinstance(data, dict):
+            return data.get("items", data.get("results", []))
+        return data if isinstance(data, list) else []
+
     def create_task(
         self,
         title: str,
@@ -96,6 +120,10 @@ class TodoistClient:
     def add_comment_task(self, title: str, body: str) -> str:
         content = f"{title}: {body[:200]}" if body else title
         return self.create_task(content, description=body)
+
+
+def _from_todoist_priority(priority: int) -> int:
+    return max(1, min(3, 5 - int(priority or 2)))
 
 
 def _to_todoist_priority(priority: int) -> int:
