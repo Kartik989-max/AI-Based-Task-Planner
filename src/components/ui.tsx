@@ -63,9 +63,22 @@ export function ProgressBar({ value }: { value: number }) {
   );
 }
 
-export function Pill({ children, tone = "default" }: { children: ReactNode; tone?: "default" | "ok" | "warn" }) {
+export function Pill({
+  children,
+  tone = "default",
+  pulse = false,
+}: {
+  children: ReactNode;
+  tone?: "default" | "ok" | "warn";
+  pulse?: boolean;
+}) {
   const toneClass = tone === "ok" ? "pill-ok" : tone === "warn" ? "pill-warn" : "";
-  return <span className={`pill ${toneClass}`}>{children}</span>;
+  return (
+    <span className={`pill ${toneClass} ${pulse ? "pill-pulse" : ""}`.trim()}>
+      {pulse ? <span className="pill-dot" aria-hidden /> : null}
+      {children}
+    </span>
+  );
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {

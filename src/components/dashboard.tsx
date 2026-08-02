@@ -2,9 +2,45 @@
 
 import { useEffect, useState } from "react";
 import { Calendar, CheckCircle2, RefreshCw, Sparkles, Sun } from "lucide-react";
+import { AnimatedIcon } from "@/components/animated-icon";
+import { CardAccent, EmptyIllustration } from "@/components/ambient";
 import { FadeIn } from "@/components/motion";
-import { Btn, Glass, PageLoader, Pill, ProgressBar, Skeleton } from "@/components/ui";
+import { Glass, PageLoader, Pill, ProgressBar, Skeleton } from "@/components/ui";
 import { api, type Health, type Progress as GoalProgress } from "@/lib/api";
+
+const actions = [
+  {
+    id: "brief" as const,
+    icon: Sun,
+    title: "Morning Brief",
+    description: "AI summary of your day ahead",
+  },
+  {
+    id: "plan" as const,
+    icon: Calendar,
+    title: "Daily Plan",
+    description: "Schedule tasks into free slots",
+  },
+  {
+    id: "sync" as const,
+    icon: RefreshCw,
+    title: "Sync Tasks",
+    description: "Pull latest from Todoist",
+  },
+  {
+    id: "weekly" as const,
+    icon: Sparkles,
+    title: "Weekly Review",
+    description: "Progress report and insights",
+  },
+];
+
+function getTimeGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
 
 export function Dashboard() {
   const [health, setHealth] = useState<Health | null>(null);
@@ -15,6 +51,11 @@ export function Dashboard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [greeting, setGreeting] = useState("Welcome back");
+
+  useEffect(() => {
+    setGreeting(getTimeGreeting());
+  }, []);
 
   useEffect(() => {
     Promise.all([api.health(), api.progress(), api.tasks("pending")])
@@ -69,47 +110,60 @@ export function Dashboard() {
   return (
     <FadeIn className="bento-asymmetric">
       <div className="bento-span-7 bento-row-2">
-        <Glass glow className="h-full p-6 md:p-8">
-          <div className="flex items-start justify-between gap-4">
+        <Glass glow className="card-with-accent h-full p-6 md:p-8">
+          <CardAccent variant="sage" />
+          <p className="greeting-text">{greeting}</p>
+
+          <div className="mt-2 flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="icon-badge">
-                <Sun className="h-5 w-5" />
+                <AnimatedIcon icon={Sun} className="h-5 w-5" />
               </div>
               <div>
                 <h2 className="display-lg text-heading">Command Center</h2>
                 <p className="text-body text-muted">Your daily AI briefing & actions</p>
               </div>
             </div>
-            <Pill tone={health?.ok ? "ok" : "warn"}>{health?.ok ? "Live" : "Offline"}</Pill>
+            <Pill tone={health?.ok ? "ok" : "warn"} pulse={health?.ok}>
+              {health?.ok ? "Live" : "Offline"}
+            </Pill>
           </div>
 
-          <div className="action-grid mt-6">
-            <Btn loading={busy === "brief"} disabled={!!busy} onClick={() => run("brief")}>
-              <Sun className="h-4 w-4" />
-              Brief
-            </Btn>
-            <Btn loading={busy === "plan"} disabled={!!busy} onClick={() => run("plan")}>
-              <Calendar className="h-4 w-4" />
-              Plan
-            </Btn>
-            <Btn loading={busy === "sync"} disabled={!!busy} onClick={() => run("sync")}>
-              <RefreshCw className="h-4 w-4" />
-              Sync
-            </Btn>
-            <Btn loading={busy === "weekly"} disabled={!!busy} onClick={() => run("weekly")}>
-              <Sparkles className="h-4 w-4" />
-              Review
-            </Btn>
+          <div className="action-grid mt-8">
+            {actions.map(({ id, icon, title, description }) => (
+              <button
+                key={id}
+                type="button"
+                className="action-card"
+                disabled={!!busy}
+                onClick={() => run(id)}
+              >
+                <span className="action-card-icon">
+                  {busy === id ? (
+                    <RefreshCw className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <AnimatedIcon icon={icon} className="h-5 w-5" variant="bounce" />
+                  )}
+                </span>
+                <span className="action-card-title">{title}</span>
+                <span className="action-card-desc">{description}</span>
+              </button>
+            ))}
           </div>
 
           {busy ? <PageLoader /> : null}
           {error ? <p className="mt-4 text-sm text-red-500">{error}</p> : null}
 
+          <div className="section-divider section-divider--inset mt-6" />
+
           <div className="panel-inner mt-5 p-5">
             {brief ? (
               <pre className="max-h-56 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-muted">{brief}</pre>
             ) : (
-              <p className="text-center text-sm text-muted-2">Hit a button above to generate your plan</p>
+              <div className="empty-state">
+                <EmptyIllustration />
+                <p className="text-sm text-muted-2">Pick an action above to generate your plan</p>
+              </div>
             )}
           </div>
 
@@ -126,9 +180,10 @@ export function Dashboard() {
       </div>
 
       <div className="bento-span-5">
-        <Glass className="flex h-full flex-col justify-between p-6">
+        <Glass className="card-with-accent flex h-full flex-col justify-between p-6">
+          <CardAccent variant="sky" />
           <div className="icon-badge">
-            <CheckCircle2 className="h-5 w-5" />
+            <AnimatedIcon icon={CheckCircle2} className="h-5 w-5" />
           </div>
           <div className="mt-4">
             <p className="stat-num">{progress?.progress_pct ?? 0}%</p>
@@ -142,9 +197,10 @@ export function Dashboard() {
       </div>
 
       <div className="bento-span-5">
-        <Glass className="flex h-full flex-col justify-between p-6">
+        <Glass className="card-with-accent flex h-full flex-col justify-between p-6">
+          <CardAccent variant="sand" />
           <div className="icon-badge">
-            <CheckCircle2 className="h-5 w-5" />
+            <AnimatedIcon icon={CheckCircle2} className="h-5 w-5" />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div>
@@ -164,12 +220,16 @@ export function Dashboard() {
 
       <div className="bento-span-full">
         <Glass className="p-6 md:p-8">
+          <div className="section-divider section-divider--inset mb-5" />
           <div className="mb-5 flex items-center justify-between">
             <h2 className="display-lg text-heading">Pending tasks</h2>
             <Pill>{tasks.length} active</Pill>
           </div>
           {tasks.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-2">No pending tasks — ingest a PDF or chat to get started</p>
+            <div className="empty-state py-6">
+              <EmptyIllustration />
+              <p className="text-sm text-muted-2">No pending tasks — ingest a PDF or chat to get started</p>
+            </div>
           ) : (
             <ul className="space-y-2">
               {tasks.map((task) => (
