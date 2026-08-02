@@ -50,9 +50,13 @@ def update_external_task(
         get_client().update_task(external_id, due_date=due_date, due_datetime=due_datetime)
 
 
-def notify(title: str, body: str = "") -> str | None:
+def notify(title: str, body: str = "", *, at: datetime | None = None) -> str | None:
+    """Create a notification task. Set `at` for Todoist push reminder at that time."""
     if settings.use_todoist:
-        return get_client().add_comment_task(title, body)
+        client = get_client()
+        if at:
+            return client.create_task(title, description=body[:500], due_datetime=at, priority=1)
+        return client.create_task(title, description=body[:500], priority=1)
     if settings.push_reminders_locally:
-        return create_reminder(title, list_name=settings.reminders_list, body=body[:500])
+        return create_reminder(title, list_name=settings.reminders_list, body=body[:500], due=at)
     return None

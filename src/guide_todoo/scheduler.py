@@ -7,6 +7,7 @@ from apscheduler.triggers.cron import CronTrigger
 from guide_todoo.config import settings
 from guide_todoo.planner import generate_daily_plan, sync_jira
 from guide_todoo.review import end_of_day_summary, generate_monthly_report
+from guide_todoo.sync_todoist import run_full_sync, sync_from_todoist
 
 logger = logging.getLogger(__name__)
 _scheduler: BackgroundScheduler | None = None
@@ -15,10 +16,19 @@ _scheduler: BackgroundScheduler | None = None
 def _morning_job() -> None:
     logger.info("Running morning plan job")
     try:
+        run_full_sync()
         sync_jira()
         generate_daily_plan(date.today())
     except Exception:
         logger.exception("Morning plan job failed")
+
+
+def _sync_job() -> None:
+    logger.info("Running Todoist sync job")
+    try:
+        sync_from_todoist()
+    except Exception:
+        logger.exception("Todoist sync job failed")
 
 
 def _eod_job() -> None:
@@ -43,6 +53,12 @@ def start_scheduler() -> BackgroundScheduler:
     if _scheduler and _scheduler.running:
         return _scheduler
     _scheduler = BackgroundScheduler(timezone=settings.timezone)
+    _scheduler.add_job(
+        _sync_job,
+        CronTrigger(minute=0, timezone=settings.timezone),
+        id="todoist_sync",
+        replace_existing=True,
+    )
     _scheduler.add_job(
         _morning_job,
         CronTrigger(hour=settings.morning_plan_hour, minute=0, timezone=settings.timezone),

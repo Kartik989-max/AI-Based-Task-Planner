@@ -6,6 +6,7 @@ from openai import OpenAI
 from guide_todoo.config import settings
 from guide_todoo.models import DailyPlanItem, DailyPlanResult, ParsedTask
 from guide_todoo.scheduling import normalize_due_date, workload_summary
+from guide_todoo.user_context import build_llm_context
 
 
 def _client() -> OpenAI:
@@ -21,6 +22,7 @@ def _chat_json(system: str, user: str) -> Any:
             "LLM API key missing. Set LLM_API_KEY in .env "
             "(free: Groq at console.groq.com, Gemini at aistudio.google.com, OpenRouter at openrouter.ai)."
         )
+    system = f"{build_llm_context()}\n\n{system}"
     response = _client().chat.completions.create(
         model=settings.resolved_model,
         messages=[
@@ -62,7 +64,9 @@ Rules:
 - Each task completable in under 2 hours.
 - Break large weekly/monthly plans into daily-sized subtasks.
 - priority: 1=urgent, 2=normal, 3=low
-- Respect existing workload — don't pile everything on one day.""",
+- Schedule ONLY outside user's work hours unless task is work-related.
+- Put study/DSA tasks in deep work window or side-goal hours.
+- Respect max tasks/day from user profile — don't overload.""",
         f"Context: {context or 'general work'}\n\nContent:\n{text[:30000]}",
     )
     return [ParsedTask.model_validate(t) for t in payload.get("tasks", [])]
@@ -95,7 +99,8 @@ Return JSON:
 Rules:
 - Schedule only {settings.max_tasks_per_day} tasks max for today — user cannot do more.
 - Prioritize overdue and due-today tasks first.
-- Morning (08:00-12:00) = deep work / hard topics. Afternoon = lighter tasks.
+- Morning deep work window = hard tasks (DSA, coding). Afternoon = lighter/admin.
+- Tie each task reason to user's main goal when possible.
 - Skip tasks not due today unless overdue or light workload day.
 - Consider existing workload per day when picking tasks.""",
         f"Today: {today.isoformat()}\n\nWorkload next 2 weeks:\n{workload_lines or '(light)'}\n\nCandidate tasks:\n{task_lines or '(none)'}",
@@ -124,6 +129,22 @@ Include: completion rate, sources breakdown, wins, bottlenecks, 3 recommendation
         f"Stats: {stats}\n\nSample tasks: {sample_tasks[:30]}",
     )
     return str(payload.get("report", "No report generated."))
+
+
+def extract_day_memories(
+    completed: list[dict[str, Any]],
+    rolled: list[dict],
+    score: float,
+    summary: str,
+) -> list[str]:
+    payload = _chat_json(
+        """Extract 1-2 short learnings about this user's work habits to remember for future planning.
+Return JSON: {"memories": ["fact1", "fact2"]}
+Only include actionable insights (preferred times, what they skip, what they finish). Max 2 items.""",
+        f"Score: {score}\nSummary: {summary}\nCompleted: {[t.get('title') for t in completed]}\nRolled: {[t.get('title') for t in rolled]}",
+    )
+    return [str(m) for m in payload.get("memories", []) if m]
+
 
 
 def parse_due_date(value: str | None) -> date | None:

@@ -44,6 +44,24 @@ CREATE TABLE IF NOT EXISTS monthly_reports (
 
 CREATE INDEX IF NOT EXISTS idx_tasks_status_reminder ON tasks (status, reminder_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks (due_date);
+
+CREATE TABLE IF NOT EXISTS user_profiles (
+    user_id TEXT PRIMARY KEY,
+    profile JSONB NOT NULL,
+    onboarded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_memories (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL DEFAULT 'default',
+    kind TEXT NOT NULL,
+    content TEXT NOT NULL,
+    source TEXT DEFAULT 'system',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_memories_user ON user_memories (user_id, created_at DESC);
 """
 
 _initialized = False
@@ -297,3 +315,49 @@ def ping() -> bool:
     with connect() as conn:
         conn.execute("SELECT 1")
     return True
+
+
+def upsert_user_profile(user_id: str, profile: dict[str, Any]) -> None:
+    now = _now()
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO user_profiles (user_id, profile, onboarded_at, updated_at)
+            VALUES (%s, %s::jsonb, %s, %s)
+            ON CONFLICT (user_id) DO UPDATE SET
+                profile = EXCLUDED.profile,
+                updated_at = EXCLUDED.updated_at
+            """,
+            (user_id, json.dumps(profile), now, now),
+        )
+
+
+def get_user_profile(user_id: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT profile FROM user_profiles WHERE user_id = %s", (user_id,)
+        ).fetchone()
+    if not row:
+        return None
+    profile = row["profile"]
+    return profile if isinstance(profile, dict) else json.loads(profile)
+
+
+def add_memory(user_id: str, kind: str, content: str, source: str = "system") -> None:
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO user_memories (user_id, kind, content, source, created_at) VALUES (%s, %s, %s, %s, %s)",
+            (user_id, kind, content, source, _now()),
+        )
+
+
+def list_memories(user_id: str, limit: int = 12) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT kind, content, source, created_at FROM user_memories
+            WHERE user_id = %s ORDER BY created_at DESC LIMIT %s
+            """,
+            (user_id, limit),
+        ).fetchall()
+    return [dict(r) for r in rows]

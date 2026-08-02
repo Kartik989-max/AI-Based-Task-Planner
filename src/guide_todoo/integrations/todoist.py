@@ -39,6 +39,16 @@ class TodoistClient:
         self._project_id = str(created["id"])
         return self._project_id
 
+    def get_task(self, task_id: str) -> dict[str, Any]:
+        return self._request("GET", f"/tasks/{task_id}")
+
+    def list_active_tasks(self) -> list[dict[str, Any]]:
+        project_id = self.ensure_project()
+        data = self._request("GET", "/tasks", params={"project_id": project_id})
+        if isinstance(data, dict):
+            return data.get("results", [])
+        return data if isinstance(data, list) else []
+
     def create_task(
         self,
         title: str,

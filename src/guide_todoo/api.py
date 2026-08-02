@@ -12,9 +12,12 @@ from guide_todoo.ingest.pdf import extract_text_from_pdf
 from guide_todoo.integrations.jira import JiraClient
 from guide_todoo.integrations.reminders import list_incomplete_reminders
 from guide_todoo.integrations.tasks_backend import complete_external
+from guide_todoo.models import OnboardingRequest
 from guide_todoo.planner import generate_daily_plan, ingest_chat, ingest_pdf_text, reschedule_stale_tasks, sync_jira
 from guide_todoo.review import end_of_day_summary, generate_monthly_report
 from guide_todoo.scheduler import start_scheduler, stop_scheduler
+from guide_todoo.sync_todoist import run_full_sync, sync_from_todoist
+from guide_todoo.user_context import get_memories, get_profile, is_onboarded, save_profile
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -54,6 +57,33 @@ class BridgeAck(BaseModel):
     reminder_id: str
 
 
+def _require_onboarded() -> None:
+    if not is_onboarded():
+        raise HTTPException(
+            400,
+            "Complete onboarding first: POST /onboard with your work hours, goals, and preferences.",
+        )
+
+
+@app.get("/onboard/status")
+def onboard_status():
+    return {"onboarded": is_onboarded()}
+
+
+@app.post("/onboard")
+def onboard(body: OnboardingRequest):
+    profile = save_profile(body)
+    return {"ok": True, "profile": profile}
+
+
+@app.get("/profile")
+def profile():
+    p = get_profile()
+    if not p:
+        raise HTTPException(404, "Not onboarded. POST /onboard first.")
+    return {"profile": p, "memories": get_memories()}
+
+
 @app.get("/health")
 def health():
     db_ok = False
@@ -71,6 +101,7 @@ def health():
         "llm_configured": bool(settings.resolved_api_key),
         "reminders_mode": settings.reminders_mode,
         "jira_enabled": JiraClient().enabled,
+        "onboarded": is_onboarded(),
     }
 
 
@@ -87,6 +118,7 @@ def bridge_ack(body: BridgeAck, _: None = Depends(verify_bridge)):
 
 @app.post("/ingest/pdf")
 async def upload_pdf(file: UploadFile = File(...)):
+    _require_onboarded()
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "Upload a PDF file")
     data = await file.read()
@@ -102,6 +134,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 @app.post("/ingest/chat")
 def chat_tasks(body: ChatRequest):
+    _require_onboarded()
     try:
         tasks = ingest_chat(body.message)
     except RuntimeError as exc:
@@ -118,6 +151,19 @@ def jira_sync():
     if not JiraClient().enabled:
         raise HTTPException(400, "Jira not configured. Set JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN in .env")
     return {"synced": len(created), "tasks": created}
+
+
+@app.post("/sync/todoist")
+def sync_todoist():
+    try:
+        return run_full_sync()
+    except RuntimeError as exc:
+        raise HTTPException(500, str(exc)) from exc
+
+
+@app.get("/api/cron/sync-todoist")
+def cron_sync_todoist(_: None = Depends(_verify_cron)):
+    return run_full_sync()
 
 
 @app.post("/plan/reschedule")
@@ -194,6 +240,7 @@ def _verify_cron(authorization: str | None = Header(default=None)) -> None:
 
 @app.get("/api/cron/morning")
 def cron_morning(_: None = Depends(_verify_cron)):
+    run_full_sync()
     sync_jira()
     return generate_daily_plan()
 
