@@ -71,6 +71,12 @@ class Settings(BaseSettings):
     session_secret: str = "change-me"
 
     @property
+    def resolved_google_redirect_uri(self) -> str:
+        if self.google_redirect_uri and "your-app" not in self.google_redirect_uri:
+            return self.google_redirect_uri
+        return f"{self.app_base_url.rstrip('/')}/auth/google/callback"
+
+    @property
     def resolved_api_key(self) -> str:
         return self.llm_api_key or self.openai_api_key
 

@@ -28,21 +28,21 @@ def _client_config() -> dict[str, Any]:
             "client_secret": settings.google_client_secret,
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [settings.google_redirect_uri],
+            "redirect_uris": [settings.resolved_google_redirect_uri],
         }
     }
 
 
 def auth_url(user_id: str = "default") -> str:
     flow = Flow.from_client_config(_client_config(), scopes=SCOPES, state=user_id)
-    flow.redirect_uri = settings.google_redirect_uri
+    flow.redirect_uri = settings.resolved_google_redirect_uri
     url, _ = flow.authorization_url(access_type="offline", include_granted_scopes="true", prompt="consent")
     return url
 
 
 def handle_callback(code: str, user_id: str = "default") -> dict[str, str]:
     flow = Flow.from_client_config(_client_config(), scopes=SCOPES, state=user_id)
-    flow.redirect_uri = settings.google_redirect_uri
+    flow.redirect_uri = settings.resolved_google_redirect_uri
     flow.fetch_token(code=code)
     creds = flow.credentials
     db.save_oauth_token(
