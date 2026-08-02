@@ -90,6 +90,15 @@ def _require_onboarded() -> None:
         )
 
 
+def _verify_cron(authorization: str | None = Header(default=None)) -> None:
+    secret = settings.resolved_cron_secret
+    if not secret:
+        return
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if token != secret:
+        raise HTTPException(401, "Invalid cron secret")
+
+
 @app.get("/onboard/status")
 def onboard_status():
     return {"onboarded": is_onboarded()}
@@ -344,15 +353,6 @@ def reminders_incomplete():
     if not settings.push_reminders_locally:
         raise HTTPException(400, "Reminders only available in local mode on Mac")
     return {"reminders": list_incomplete_reminders(settings.reminders_list)}
-
-
-def _verify_cron(authorization: str | None = Header(default=None)) -> None:
-    secret = settings.resolved_cron_secret
-    if not secret:
-        return
-    token = (authorization or "").removeprefix("Bearer ").strip()
-    if token != secret:
-        raise HTTPException(401, "Invalid cron secret")
 
 
 @app.get("/api/cron/morning")
